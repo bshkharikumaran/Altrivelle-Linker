@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Altrivelle Linker — Secure File Request | Developed by ALTRIVELLE TECHNOLOGIES</title>
+  <meta name="description" content="Submit files securely via Altrivelle Linker DropBox. Developed by ALTRIVELLE TECHNOLOGIES." />
+  <link rel="icon" type="image/png" href="/assets/altrivelle-linker-logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body class="share-landing-body">
+  <div id="request-app-root">
+    <!-- Navbar -->
+    <header class="share-nav">
+      <div class="share-nav-inner container">
+        <a href="/" class="brand-link">
+          <img src="/assets/altrivelle-linker-logo.png" alt="Altrivelle Linker" class="brand-logo-img" />
+          <div class="brand-text-col">
+            <span class="brand-title">Altrivelle Linker</span>
+            <span class="brand-subtitle">DropBox File Request Portal</span>
+          </div>
+        </a>
+        <div class="share-nav-right">
+          <a href="/" class="btn btn-outline btn-sm">
+            Open Platform
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="share-main-content">
+      <div class="container share-container" id="request-container">
+        <div class="share-loading-card glass-panel">
+          <div class="spinner"></div>
+          <h2>Verifying Secure File Request...</h2>
+          <p>Connecting to secure submission portal</p>
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer with ALTRIVELLE TECHNOLOGIES branding -->
+    <footer class="app-footer">
+      <div class="container footer-container">
+        <div class="footer-brand-info">
+          <img src="/assets/altrivelle-linker-logo.png" alt="ALTRIVELLE TECHNOLOGIES" class="footer-logo" onerror="this.style.display='none'" />
+          <div class="footer-text-group">
+            <p class="footer-copyright">
+              &copy; 2026 Altrivelle Linker. All rights reserved. Developed by <strong>ALTRIVELLE TECHNOLOGIES</strong>.
+            </p>
+            <p class="footer-tagline">One Link. Smarter Sharing.</p>
+          </div>
+        </div>
+        <div class="footer-links">
+          <a href="/" class="footer-link">Go to Dashboard</a>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <div id="toast-container" class="toast-container"></div>
+  <script type="module" src="/src/request.js"></script>
+</body>
+</html>

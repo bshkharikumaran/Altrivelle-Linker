@@ -1,0 +1,32 @@
+{
+  "version": 2,
+  "framework": "vite",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "rewrites": [
+    {
+      "source": "/s/:token",
+      "destination": "/share.html?token=:token"
+    },
+    {
+      "source": "/r/:token",
+      "destination": "/request.html?token=:token"
+    },
+    {
+      "source": "/f/:token",
+      "destination": "/api/share/:token?raw=1"
+    },
+    {
+      "source": "/raw/:token",
+      "destination": "/api/share/:token?raw=1"
+    },
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    },
+    {
+      "source": "/((?!api|assets|public|share.html|request.html|s/|r/|f/|raw/|_assets|favicon.ico).*)$",
+      "destination": "/index.html"
+    }
+  ]
+}

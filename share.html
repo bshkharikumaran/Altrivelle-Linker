@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Altrivelle Linker — One Link. Smarter Sharing. | Developed by ALTRIVELLE TECHNOLOGIES</title>
+  <meta name="description" content="View and download securely shared files on Altrivelle Linker, developed by ALTRIVELLE TECHNOLOGIES." />
+  <link rel="icon" type="image/png" href="/assets/altrivelle-linker-logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body class="share-landing-body">
+  <div id="share-app-root">
+    <!-- Navbar -->
+    <header class="share-nav">
+      <div class="share-nav-inner container">
+        <a href="/" class="brand-link">
+          <img src="/assets/altrivelle-linker-logo.png" alt="Altrivelle Linker" class="brand-logo-img" />
+          <div class="brand-text-col">
+            <span class="brand-title">Altrivelle Linker</span>
+            <span class="brand-subtitle">One Link. Smarter Sharing.</span>
+          </div>
+        </a>
+
+        <div class="share-nav-right">
+          <button type="button" class="theme-toggle-btn btn-icon" id="btn-theme-toggle-share" aria-label="Toggle Theme" title="Toggle Theme">
+            <svg class="sun-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+          </button>
+          <a href="/" class="btn btn-outline btn-sm">
+            Open Platform
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Shared File Container -->
+    <main class="share-main-content">
+      <div class="container share-container" id="share-card-container">
+        <div class="share-loading-card glass-panel animate-scale-up">
+          <div class="spinner"></div>
+          <h2>Verifying Secure Share Link...</h2>
+          <p>Validating cryptographic token integrity, access policies, and expiration status</p>
+          <div class="share-loading-meta">
+            Secured by <strong>Altrivelle Linker</strong> &bull; Developed by <strong>ALTRIVELLE TECHNOLOGIES</strong>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer with ALTRIVELLE TECHNOLOGIES branding -->
+    <footer class="app-footer">
+      <div class="container footer-container">
+        <div class="footer-brand-info">
+          <img src="/assets/altrivelle-linker-logo.png" alt="ALTRIVELLE TECHNOLOGIES" class="footer-logo" onerror="this.style.display='none'" />
+          <div class="footer-text-group">
+            <p class="footer-copyright">
+              &copy; 2026 Altrivelle Linker. All rights reserved. Developed by <strong>ALTRIVELLE TECHNOLOGIES</strong>.
+            </p>
+            <p class="footer-tagline">One Link. Smarter Sharing. &bull; Send files. Receive files. Control access. Automate everything.</p>
+          </div>
+        </div>
+        <div class="footer-links">
+          <a href="/" class="footer-link">Go to Dashboard</a>
+          <span class="footer-divider">&bull;</span>
+          <span class="developer-tag">ALTRIVELLE TECHNOLOGIES</span>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <div id="modal-root" class="modal-root hidden"></div>
+  <div id="toast-container" class="toast-container"></div>
+
+  <script type="module" src="/src/share.js"></script>
+</body>
+</html>
