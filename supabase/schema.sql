@@ -385,15 +385,22 @@ CREATE POLICY "Shares: admin all" ON public.share_links FOR ALL
     USING (auth.jwt() ->> 'email' = 'sriharibshk@gmail.com');
 
 -- File Requests
+DROP POLICY IF EXISTS "Requests: user access" ON public.file_requests;
 CREATE POLICY "Requests: user access" ON public.file_requests FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Requests: public submit view" ON public.file_requests;
 CREATE POLICY "Requests: public submit view" ON public.file_requests FOR SELECT
     USING (is_active = true AND (expires_at IS NULL OR expires_at > timezone('utc'::text, now())));
 
 -- File Submissions
+DROP POLICY IF EXISTS "Submissions: owner access" ON public.file_submissions;
 CREATE POLICY "Submissions: owner access" ON public.file_submissions FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Submissions: anonymous insert" ON public.file_submissions;
 CREATE POLICY "Submissions: anonymous insert" ON public.file_submissions FOR INSERT WITH CHECK (true);
 
 -- Webhooks
+DROP POLICY IF EXISTS "Webhooks: user access" ON public.webhooks;
 CREATE POLICY "Webhooks: user access" ON public.webhooks FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 NOTIFY pgrst, 'reload schema';
