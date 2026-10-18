@@ -21,34 +21,44 @@ export function getSupabase() {
     }
   }
 
+  // Safe chainable fallback query builder
+  const createChainableQuery = () => {
+    const chain = {
+      select: () => chain,
+      insert: () => Promise.resolve({ data: null, error: null }),
+      update: () => chain,
+      delete: () => chain,
+      eq: () => chain,
+      neq: () => chain,
+      order: () => chain,
+      limit: () => chain,
+      single: () => Promise.resolve({ data: null, error: null }),
+      maybeSingle: () => Promise.resolve({ data: null, error: null }),
+      then: (resolve) => resolve({ data: [], error: null, count: 0 }),
+    };
+    return chain;
+  };
+
   // Fallback safe dummy client if keys are not set up yet
   return {
     auth: {
+      getUser: async () => ({ data: { user: null }, error: null }),
       getSession: async () => ({ data: { session: null }, error: null }),
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
       signInWithPassword: async () => ({
         data: null,
-        error: new Error('Supabase URL and Anon Key are not yet configured. Please set them in .env'),
+        error: new Error('Supabase credentials not configured.'),
       }),
       signUp: async () => ({
         data: null,
-        error: new Error('Supabase URL and Anon Key are not yet configured. Please set them in .env'),
+        error: new Error('Supabase credentials not configured.'),
       }),
       signOut: async () => ({ error: null }),
       resetPasswordForEmail: async () => ({
-        error: new Error('Supabase URL and Anon Key are not yet configured. Please set them in .env'),
+        error: new Error('Supabase credentials not configured.'),
       }),
     },
-    from: () => ({
-      select: () => ({
-        eq: () => ({ order: () => Promise.resolve({ data: [], error: null }) }),
-        order: () => Promise.resolve({ data: [], error: null }),
-        single: () => Promise.resolve({ data: null, error: null }),
-      }),
-      insert: () => Promise.resolve({ data: null, error: new Error('Supabase credentials not configured') }),
-      update: () => Promise.resolve({ data: null, error: new Error('Supabase credentials not configured') }),
-      delete: () => Promise.resolve({ data: null, error: new Error('Supabase credentials not configured') }),
-    }),
+    from: () => createChainableQuery(),
     storage: {
       from: () => ({
         upload: () => Promise.resolve({ error: new Error('Supabase credentials not configured') }),

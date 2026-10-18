@@ -17,9 +17,9 @@ export const APP_CONFIG = {
   version: '1.2.0',
   year: '2026',
 
-  // Supabase credentials
-  supabaseUrl: (import.meta.env.VITE_SUPABASE_URL || '').trim(),
-  supabaseAnonKey: (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim(),
+  // Supabase credentials (environment variable with production project fallbacks)
+  supabaseUrl: (import.meta.env.VITE_SUPABASE_URL || 'https://rdmapdajjygalfsntvkl.supabase.co').trim(),
+  supabaseAnonKey: (import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_7qSgSwZRmht7oYRs8k0zvA_DZCe5u6x').trim(),
 
   // Storage Settings
   storageBucket: 'filelink-files',

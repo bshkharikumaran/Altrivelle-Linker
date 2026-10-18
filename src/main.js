@@ -46,28 +46,37 @@ class AppRouter {
   async init() {
     themeManager.init();
 
-    // Check user session
-    this.currentUser = await authService.getCurrentUser();
+    try {
+      // Check user session
+      this.currentUser = await authService.getCurrentUser();
+    } catch (authErr) {
+      console.warn('Initial session check error:', authErr);
+      this.currentUser = null;
+    }
 
-    // Listen to Supabase auth events
-    authService.onAuthStateChange(async (event, session) => {
-      this.currentUser = session?.user || null;
-      if (event === 'SIGNED_OUT') {
-        this.currentUser = null;
-        this.navigate('auth');
-      } else if (event === 'SIGNED_IN') {
-        this.updateUserSidebar();
-        if (this.currentRoute === 'auth') {
-          this.navigate('dashboard');
+    try {
+      // Listen to Supabase auth events
+      authService.onAuthStateChange(async (event, session) => {
+        this.currentUser = session?.user || null;
+        if (event === 'SIGNED_OUT') {
+          this.currentUser = null;
+          this.navigate('auth');
+        } else if (event === 'SIGNED_IN') {
+          this.updateUserSidebar();
+          if (this.currentRoute === 'auth') {
+            this.navigate('dashboard');
+          }
         }
-      }
-    });
+      });
+    } catch (listenerErr) {
+      console.warn('Auth listener registration error:', listenerErr);
+    }
 
     window.addEventListener('hashchange', () => this.handleRouting());
 
     this.bindGlobalEvents();
-    this.handleRouting();
-    this.updateUserSidebar();
+    await this.handleRouting();
+    await this.updateUserSidebar();
   }
 
   async handleRouting() {
@@ -85,68 +94,77 @@ class AppRouter {
     const mobileHeader = document.querySelector('.mobile-header');
     const topBar = document.querySelector('.app-topbar');
 
-    // If auth view, adapt layout
-    if (hash === 'auth') {
-      if (sidebar) sidebar.classList.add('hidden');
-      if (mobileHeader) mobileHeader.classList.add('hidden');
-      if (topBar) topBar.classList.add('hidden');
-      authView.render(mainContainer);
-      return;
-    }
+    if (!mainContainer) return;
 
-    if (hash === 'landing' || hash === 'showcase') {
+    try {
+      // If auth view, adapt layout
+      if (hash === 'auth') {
+        if (sidebar) sidebar.classList.add('hidden');
+        if (mobileHeader) mobileHeader.classList.add('hidden');
+        if (topBar) topBar.classList.add('hidden');
+        authView.render(mainContainer);
+        return;
+      }
+
+      if (hash === 'landing' || hash === 'showcase') {
+        if (sidebar) sidebar.classList.remove('hidden');
+        if (mobileHeader) mobileHeader.classList.remove('hidden');
+        if (topBar) topBar.classList.remove('hidden');
+        landingView.render(mainContainer);
+        return;
+      }
+
       if (sidebar) sidebar.classList.remove('hidden');
       if (mobileHeader) mobileHeader.classList.remove('hidden');
       if (topBar) topBar.classList.remove('hidden');
-      landingView.render(mainContainer);
-      return;
-    }
 
-    if (sidebar) sidebar.classList.remove('hidden');
-    if (mobileHeader) mobileHeader.classList.remove('hidden');
-    if (topBar) topBar.classList.remove('hidden');
-
-    // Render corresponding view
-    switch (hash) {
-      case 'dashboard':
-        await dashboardView.render(mainContainer);
-        break;
-      case 'files':
-        await filesView.render(mainContainer);
-        break;
-      case 'projects':
-        await projectsView.render(mainContainer);
-        break;
-      case 'transfers':
-        transfersView.render(mainContainer);
-        break;
-      case 'requests':
-        await requestsView.render(mainContainer);
-        break;
-      case 'automation':
-        await automationView.render(mainContainer);
-        break;
-      case 'plans':
-        plansView.render(mainContainer);
-        break;
-      case 'settings':
-        await settingsView.render(mainContainer);
-        break;
-      case 'admin': {
-        const isAdmin = await adminService.isCurrentUserAdmin();
-        if (!isAdmin) {
-          toast.error('Administrative access restricted to designated platform owner.');
-          this.navigate('dashboard');
-          return;
+      // Render corresponding view
+      switch (hash) {
+        case 'dashboard':
+          await dashboardView.render(mainContainer);
+          break;
+        case 'files':
+          await filesView.render(mainContainer);
+          break;
+        case 'projects':
+          await projectsView.render(mainContainer);
+          break;
+        case 'transfers':
+          transfersView.render(mainContainer);
+          break;
+        case 'requests':
+          await requestsView.render(mainContainer);
+          break;
+        case 'automation':
+          await automationView.render(mainContainer);
+          break;
+        case 'plans':
+          plansView.render(mainContainer);
+          break;
+        case 'settings':
+          await settingsView.render(mainContainer);
+          break;
+        case 'admin': {
+          const isAdmin = await adminService.isCurrentUserAdmin();
+          if (!isAdmin) {
+            toast.error('Administrative access restricted to designated platform owner.');
+            this.navigate('dashboard');
+            return;
+          }
+          await adminView.render(mainContainer);
+          break;
         }
-        await adminView.render(mainContainer);
-        break;
+        default:
+          landingView.render(mainContainer);
       }
-      default:
-        await dashboardView.render(mainContainer);
+    } catch (routeErr) {
+      console.error('Error rendering route:', hash, routeErr);
+      landingView.render(mainContainer);
     }
 
-    this.updateStorageMeter();
+    try {
+      this.updateStorageMeter();
+    } catch (_) {}
   }
 
   navigate(route) {
@@ -173,7 +191,13 @@ class AppRouter {
     const mobileAvatarEl = document.getElementById('mobile-user-avatar');
     const adminNavLink = document.getElementById('nav-link-admin');
 
-    const isAdmin = await adminService.isCurrentUserAdmin();
+    let isAdmin = false;
+    try {
+      isAdmin = await adminService.isCurrentUserAdmin();
+    } catch (_) {
+      isAdmin = false;
+    }
+
     if (adminNavLink) {
       if (isAdmin) {
         adminNavLink.classList.remove('hidden');
