@@ -10,6 +10,13 @@ import { icons } from './ui/icons.js';
 import { toast } from './ui/toast.js';
 import { trustPassport } from './ui/trustPassport.js';
 import { annotationsComponent } from './ui/annotations.js';
+import { inject as injectAnalytics } from '@vercel/analytics';
+import { injectSpeedInsights } from '@vercel/speed-insights';
+
+try {
+  injectAnalytics();
+  injectSpeedInsights();
+} catch (_) {}
 
 function formatBytes(bytes, decimals = 1) {
   if (!+bytes) return '0 Bytes';

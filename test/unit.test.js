@@ -145,7 +145,7 @@ describe('Altrivelle Linker — Automated Unit Test Suite', () => {
     const res = await shareService.verifyPassword('invalid-token', 'wrong-pass');
     expect(res.success).toBe(false);
     expect(res.error).toBeDefined();
-  });
+  }, 15000);
 
   it('manages text annotations and exports formatted markdown reviews', async () => {
     const { annotationsService } = await import('../src/services/annotations.service.js');

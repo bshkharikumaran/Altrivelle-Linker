@@ -18,6 +18,14 @@ import { landingView } from './views/landing.view.js';
 import { adminView } from './views/admin.view.js';
 import { adminService } from './services/admin.service.js';
 import { filesService } from './services/files.service.js';
+import { inject as injectAnalytics } from '@vercel/analytics';
+import { injectSpeedInsights } from '@vercel/speed-insights';
+
+// Initialize Vercel Analytics & Speed Insights for production telemetry
+try {
+  injectAnalytics();
+  injectSpeedInsights();
+} catch (_) {}
 
 function formatBytes(bytes, decimals = 1) {
   if (!+bytes) return '0 Bytes';

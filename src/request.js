@@ -7,6 +7,13 @@ import { fileRequestsService } from './services/requests.service.js';
 import { themeManager } from './ui/theme.js';
 import { icons } from './ui/icons.js';
 import { toast } from './ui/toast.js';
+import { inject as injectAnalytics } from '@vercel/analytics';
+import { injectSpeedInsights } from '@vercel/speed-insights';
+
+try {
+  injectAnalytics();
+  injectSpeedInsights();
+} catch (_) {}
 
 function formatBytes(bytes, decimals = 0) {
   if (!+bytes) return '0 Bytes';
