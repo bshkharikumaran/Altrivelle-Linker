@@ -7,6 +7,7 @@ import { previewManager } from '../ui/preview.js';
 import { modal } from '../ui/modal.js';
 import { shareService } from '../services/share.service.js';
 import { openShareModal } from '../ui/shareModal.js';
+import { compressionService, COMPRESSION_MODES } from '../services/compression.service.js';
 
 function formatBytes(bytes, decimals = 1) {
   if (!+bytes) return '0 Bytes';
@@ -56,6 +57,14 @@ export const filesView = {
             <p class="view-subtitle">Browse, preview, organize, and share all stored assets</p>
           </div>
           <div class="header-actions">
+            <div class="upload-comp-toggle-group" title="Upload mode">
+              <button type="button" class="btn-comp-pill ${compressionService.getMode() === 'original' ? 'active' : ''}" id="btn-files-comp-original">
+                💎 Original
+              </button>
+              <button type="button" class="btn-comp-pill ${compressionService.getMode() === 'smart_compress' ? 'active' : ''}" id="btn-files-comp-smart">
+                ⚡ Smart Compress
+              </button>
+            </div>
             <button class="btn btn-outline" id="btn-create-project-shortcut">
               ${icons.folderPlus(18)} New Project
             </button>
@@ -438,8 +447,21 @@ export const filesView = {
           uploadBtn.textContent = 'Uploading...';
           for (const file of filesList) {
             try {
+              let fileToUpload = file;
+              if (compressionService.getMode() === COMPRESSION_MODES.SMART && compressionService.isCompressibleImage(file)) {
+                try {
+                  const compResult = await compressionService.compressImage(file);
+                  if (compResult.isOptimized) {
+                    fileToUpload = compResult.file;
+                    toast.info(`Smart Compressed "${file.name}": saved ${compResult.savedPercent} (${formatBytes(compResult.savedBytes)}) before upload`);
+                  }
+                } catch (cErr) {
+                  console.warn('Smart compression fallback:', cErr);
+                }
+              }
+
               const projId = this.filterProject !== 'all' && this.filterProject !== 'unassigned' ? this.filterProject : null;
-              await filesService.uploadFile(file, projId);
+              await filesService.uploadFile(fileToUpload, projId);
               toast.success(`"${file.name}" uploaded successfully`);
             } catch (err) {
               toast.error(`"${file.name}" failed: ${err.message}`);
@@ -450,6 +472,24 @@ export const filesView = {
           uploadInput.value = '';
           await this.loadData(container);
         }
+      });
+    }
+
+    // Compression mode toggle buttons
+    const compOrigBtn = container.querySelector('#btn-files-comp-original');
+    const compSmartBtn = container.querySelector('#btn-files-comp-smart');
+    if (compOrigBtn && compSmartBtn) {
+      compOrigBtn.addEventListener('click', () => {
+        compressionService.setMode(COMPRESSION_MODES.ORIGINAL);
+        compOrigBtn.classList.add('active');
+        compSmartBtn.classList.remove('active');
+        toast.info('Upload Mode: Original (Bit-for-bit lossless)');
+      });
+      compSmartBtn.addEventListener('click', () => {
+        compressionService.setMode(COMPRESSION_MODES.SMART);
+        compSmartBtn.classList.add('active');
+        compOrigBtn.classList.remove('active');
+        toast.success('Upload Mode: Smart Compress & Optimize enabled (saves storage quota)');
       });
     }
 

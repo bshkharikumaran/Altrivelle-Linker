@@ -146,4 +146,70 @@ describe('Altrivelle Linker — Automated Unit Test Suite', () => {
     expect(res.success).toBe(false);
     expect(res.error).toBeDefined();
   });
+
+  it('manages text annotations and exports formatted markdown reviews', async () => {
+    const { annotationsService } = await import('../src/services/annotations.service.js');
+    const testFileId = 'test-file-abc-123';
+
+    // Add note
+    const note = annotationsService.addAnnotation(testFileId, {
+      text: 'Please verify the header alignment and typography.',
+      tag: 'review',
+      author: 'QA Lead',
+      type: 'note',
+    });
+
+    expect(note.id).toBeDefined();
+    expect(note.tag).toBe('review');
+    expect(note.text).toContain('header alignment');
+
+    // Add visual pin
+    const pin = annotationsService.addAnnotation(testFileId, {
+      text: 'Logo position check',
+      tag: 'urgent',
+      author: 'Designer',
+      type: 'pin',
+      xPercent: 45.5,
+      yPercent: 20.2,
+    });
+
+    expect(pin.type).toBe('pin');
+    expect(pin.xPercent).toBe(45.5);
+
+    // List notes
+    const list = annotationsService.getAnnotations(testFileId);
+    expect(list.length).toBeGreaterThanOrEqual(2);
+
+    // Export markdown
+    const md = annotationsService.exportToMarkdown(testFileId, 'Logo.png');
+    expect(md).toContain('Annotations & Review Notes');
+    expect(md).toContain('Logo position check');
+    expect(md).toContain('ALTRIVELLE TECHNOLOGIES');
+
+    // Clean up
+    annotationsService.deleteAnnotation(testFileId, note.id);
+    annotationsService.deleteAnnotation(testFileId, pin.id);
+  });
+
+  it('correctly detects compressible files and minifies structured text in Smart Compression Engine', async () => {
+    const { compressionService, COMPRESSION_MODES } = await import('../src/services/compression.service.js');
+
+    expect(compressionService.isCompressibleImage('image/png', 'photo.png')).toBe(true);
+    expect(compressionService.isCompressibleImage('image/jpeg', 'banner.jpg')).toBe(true);
+    expect(compressionService.isCompressibleImage('image/svg+xml', 'vector.svg')).toBe(false);
+    expect(compressionService.isCompressibleText('application/json', 'data.json')).toBe(true);
+    expect(compressionService.isCompressibleText('text/plain', 'notes.txt')).toBe(true);
+
+    // Mode management
+    compressionService.setMode(COMPRESSION_MODES.SMART);
+    expect(compressionService.getMode()).toBe(COMPRESSION_MODES.SMART);
+    compressionService.setMode(COMPRESSION_MODES.ORIGINAL);
+    expect(compressionService.getMode()).toBe(COMPRESSION_MODES.ORIGINAL);
+
+    // Minify text/json
+    const rawJson = '{\n  "company": "ALTRIVELLE TECHNOLOGIES",\n  "status": "active"\n}';
+    const minified = compressionService.compressText(rawJson, 'config.json');
+    expect(minified.compressedBytes).toBeLessThan(minified.originalBytes);
+    expect(minified.content).toBe('{"company":"ALTRIVELLE TECHNOLOGIES","status":"active"}');
+  });
 });

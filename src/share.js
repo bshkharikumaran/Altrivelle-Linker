@@ -9,6 +9,7 @@ import { themeManager } from './ui/theme.js';
 import { icons } from './ui/icons.js';
 import { toast } from './ui/toast.js';
 import { trustPassport } from './ui/trustPassport.js';
+import { annotationsComponent } from './ui/annotations.js';
 
 function formatBytes(bytes, decimals = 1) {
   if (!+bytes) return '0 Bytes';
@@ -301,6 +302,10 @@ async function renderActiveFileCard(container, file, link, token, password = nul
         })}
       </div>
 
+      <!-- Annotations & Collaboration Section -->
+      <div class="mt-4 share-annotations-wrapper" id="share-annotations-mount">
+      </div>
+
       <!-- Developer attribution requirement -->
       <div class="share-card-footer-branding">
         <img src="/assets/altrivelle-linker-logo.png" alt="ALTRIVELLE TECHNOLOGIES" class="share-footer-logo" onerror="this.style.display='none'" />
@@ -361,5 +366,18 @@ async function renderActiveFileCard(container, file, link, token, password = nul
     } catch {
       // preview error non-blocking
     }
+  }
+
+  // Mount text annotations & collaboration
+  const annotMount = container.querySelector('#share-annotations-mount');
+  if (annotMount) {
+    const previewImg = container.querySelector('.share-preview-image');
+    annotationsComponent.mount(annotMount, {
+      fileId: file.id || token,
+      fileName: file.name,
+      imageElement: previewImg,
+      isReadOnly: false,
+      currentUserName: 'Share Recipient',
+    });
   }
 }

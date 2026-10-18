@@ -10,6 +10,7 @@ import { riskAdvisor } from '../services/riskAdvisor.service.js';
 import { trustPassport } from '../ui/trustPassport.js';
 import { openShareModal as showShareModalDialog } from '../ui/shareModal.js';
 import { APP_CONFIG } from '../config.js';
+import { compressionService, COMPRESSION_MODES } from '../services/compression.service.js';
 
 function formatBytes(bytes, decimals = 1) {
   if (!+bytes) return '0 Bytes';
@@ -121,13 +122,21 @@ export const dashboardView = {
               </p>
               <div class="dropzone-actions">
                 <button type="button" class="btn btn-outline" id="btn-browse-files">
-                  Browse Files
+                  ${icons.files(16)} Browse Files
                 </button>
                 <div class="upload-project-picker">
                   <label for="upload-project-select" class="sr-only">Assign to project</label>
                   <select id="upload-project-select" class="form-select-sm">
                     <option value="">No Project (Root)</option>
                   </select>
+                </div>
+                <div class="upload-comp-toggle-group" title="Choose whether to upload exact lossless original or smart compressed files">
+                  <button type="button" class="btn-comp-pill ${compressionService.getMode() === 'original' ? 'active' : ''}" data-mode="original" id="btn-comp-original">
+                    💎 Original
+                  </button>
+                  <button type="button" class="btn-comp-pill ${compressionService.getMode() === 'smart_compress' ? 'active' : ''}" data-mode="smart_compress" id="btn-comp-smart">
+                    ⚡ Smart Compress
+                  </button>
                 </div>
               </div>
             </div>
@@ -441,6 +450,26 @@ export const dashboardView = {
         }
       });
     }
+
+    // Compression mode toggle buttons
+    const compOriginalBtn = container.querySelector('#btn-comp-original');
+    const compSmartBtn = container.querySelector('#btn-comp-smart');
+    if (compOriginalBtn && compSmartBtn) {
+      compOriginalBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        compressionService.setMode(COMPRESSION_MODES.ORIGINAL);
+        compOriginalBtn.classList.add('active');
+        compSmartBtn.classList.remove('active');
+        toast.info('Upload Mode: Original (Bit-for-bit lossless)');
+      });
+      compSmartBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        compressionService.setMode(COMPRESSION_MODES.SMART);
+        compSmartBtn.classList.add('active');
+        compOriginalBtn.classList.remove('active');
+        toast.success('Upload Mode: Smart Compress & Optimize enabled (saves storage quota)');
+      });
+    }
   },
 
   showLoginRequiredModal() {
@@ -497,7 +526,20 @@ export const dashboardView = {
       const text = itemEl.querySelector('.progress-percent');
 
       try {
-        await filesService.uploadFile(file, this.selectedUploadProject || null, (percent) => {
+        let fileToUpload = file;
+        if (compressionService.getMode() === COMPRESSION_MODES.SMART && compressionService.isCompressibleImage(file)) {
+          try {
+            const compResult = await compressionService.compressImage(file);
+            if (compResult.isOptimized) {
+              fileToUpload = compResult.file;
+              toast.info(`Smart Compressed "${file.name}": saved ${compResult.savedPercent} (${formatBytes(compResult.savedBytes)}) before upload`);
+            }
+          } catch (compErr) {
+            console.warn('Smart compression fallback:', compErr);
+          }
+        }
+
+        await filesService.uploadFile(fileToUpload, this.selectedUploadProject || null, (percent) => {
           fill.style.width = `${percent}%`;
           text.textContent = `${percent}%`;
         });

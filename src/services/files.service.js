@@ -204,6 +204,53 @@ export const filesService = {
     return data;
   },
 
+  async updateFileContent(fileId, contentBlobOrText) {
+    const supabase = getSupabase();
+    const user = await authService.getCurrentUser();
+    if (!user) throw new Error('Not authenticated');
+
+    // 1. Fetch file record
+    const { data: file, error: fetchErr } = await supabase
+      .from('files')
+      .select('*')
+      .eq('id', fileId)
+      .eq('user_id', user.id)
+      .single();
+
+    if (fetchErr || !file) throw new Error('File not found or permission denied');
+
+    // 2. Prepare Blob
+    let blob = contentBlobOrText;
+    if (typeof contentBlobOrText === 'string') {
+      blob = new Blob([contentBlobOrText], { type: file.mime_type || 'text/plain' });
+    }
+
+    // 3. Update storage object with upsert: true
+    const { error: uploadError } = await supabase.storage
+      .from(APP_CONFIG.storageBucket)
+      .upload(file.storage_path, blob, {
+        upsert: true,
+        cacheControl: '0',
+      });
+
+    if (uploadError) throw new Error(`Failed to update file in storage: ${uploadError.message}`);
+
+    // 4. Update file metadata
+    const { data: updatedRecord, error: updateErr } = await supabase
+      .from('files')
+      .update({
+        size_bytes: blob.size,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', fileId)
+      .eq('user_id', user.id)
+      .select('*, projects(id, name, color)')
+      .single();
+
+    if (updateErr) throw updateErr;
+    return updatedRecord;
+  },
+
   async getSignedDownloadUrl(storagePath, fileName) {
     const supabase = getSupabase();
     const { data, error } = await supabase.storage
