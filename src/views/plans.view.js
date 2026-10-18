@@ -14,7 +14,7 @@ export const plansView = {
         <div class="view-header text-center mx-auto" style="max-width: 700px;">
           <div>
             <h1 class="view-title">Subscription Plans & Entitlements</h1>
-            <p class="view-subtitle">Transparent quotas for individual creators, teams, and self-hosted environments. Engineered with zero-trust storage isolation.</p>
+            <p class="view-subtitle">Transparent quotas for individual creators, teams, and self-hosted environments. Pricing in Indian Rupee (₹ INR) with zero-trust storage isolation.</p>
           </div>
         </div>
 

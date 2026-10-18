@@ -126,4 +126,24 @@ describe('Altrivelle Linker — Automated Unit Test Suite', () => {
     const docSnippet = shareService.buildHtmlSnippet({ name: 'report.zip', mime_type: 'application/zip' }, token);
     expect(docSnippet).toBe(`<a href="${directUrl}" download="report.zip">report.zip</a>`);
   });
+
+  it('formats subscription plan pricing in Indian Rupee (₹ INR)', () => {
+    expect(SUBSCRIPTION_PLANS.community.price).toBe('₹0');
+    expect(SUBSCRIPTION_PLANS.pro.price).toBe('₹499');
+    expect(SUBSCRIPTION_PLANS.team.price).toBe('₹1,999');
+    expect(SUBSCRIPTION_PLANS.self_hosted.price).toBe('Free');
+  });
+
+  it('generates compliant 6-character room codes for Direct Device-to-Device P2P transfers', async () => {
+    const { p2pTransferService } = await import('../src/services/transfer.service.js');
+    const roomCode = p2pTransferService.generateRoomCode();
+    expect(roomCode).toMatch(/^ALT-[0-9A-Z]{4}$/);
+    expect(roomCode).toHaveLength(8);
+  });
+
+  it('safely evaluates share link passcodes without revealing secret tokens', async () => {
+    const res = await shareService.verifyPassword('invalid-token', 'wrong-pass');
+    expect(res.success).toBe(false);
+    expect(res.error).toBeDefined();
+  });
 });

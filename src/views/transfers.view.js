@@ -4,19 +4,49 @@
 // Persistent Cloud (A), Ephemeral Self-Destruct (B), Direct Device-to-Device (C)
 // ==============================================================================
 
-import { adaptiveTransferService, TRANSFER_MODES } from '../services/transfer.service.js';
+import { adaptiveTransferService, p2pTransferService, TRANSFER_MODES } from '../services/transfer.service.js';
 import { icons } from '../ui/icons.js';
 import { toast } from '../ui/toast.js';
 import { filesService } from '../services/files.service.js';
 import { shareService } from '../services/share.service.js';
 
+function formatBytes(bytes, decimals = 1) {
+  if (!+bytes) return '0 Bytes';
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+}
+
 export const transfersView = {
   activeTab: 'adaptive', // 'adaptive', 'p2p', 'ephemeral', 'cloud'
+  p2pRole: 'send',       // 'send' (Host) or 'receive' (Client)
   p2pFile: null,
   p2pRoomCode: null,
-  p2pStatus: 'idle', // 'idle', 'waiting', 'connected', 'transferring', 'completed'
+  p2pStatus: 'idle',     // 'idle', 'waiting', 'connecting', 'connected', 'transferring', 'completed'
+  p2pStatusMessage: 'Ready to establish direct tunnel',
+  p2pProgress: null,
+  receivedFileResult: null,
 
   render(container) {
+    // Check URL parameters (e.g. #transfers?role=receive&room=ALT-8492)
+    const hash = window.location.hash;
+    if (hash.includes('?')) {
+      const queryStr = hash.split('?')[1];
+      const params = new URLSearchParams(queryStr);
+      const urlRole = params.get('role');
+      const urlRoom = params.get('room');
+      if (urlRoom) {
+        this.activeTab = 'p2p';
+        this.p2pRole = 'receive';
+        this.p2pRoomCode = urlRoom.toUpperCase();
+      } else if (urlRole) {
+        this.activeTab = 'p2p';
+        this.p2pRole = urlRole;
+      }
+    }
+
     container.innerHTML = `
       <div class="transfers-page animate-fade-in">
         <div class="view-header">
@@ -97,44 +127,22 @@ export const transfersView = {
           <div class="section-card-header">
             <div>
               <h2 class="section-title">Direct WebRTC Device-to-Device Transfer</h2>
-              <p class="section-subtitle">Transfer gigabyte-scale files directly between devices without hitting any server storage</p>
+              <p class="section-subtitle">Transfer gigabyte-scale files directly between two devices without hitting any server storage</p>
             </div>
-            <span class="badge badge-success">${icons.shield(12)} P2P Direct Tunnel</span>
+            <span class="badge badge-success">${icons.shield(12)} Zero Cloud Residency</span>
           </div>
 
-          <div class="p2p-workflow-steps">
-            <div class="p2p-step">
-              <span class="p2p-step-num">1</span>
-              <div>
-                <strong>Select File to Send:</strong>
-                <input type="file" id="p2p-file-picker" class="form-input mt-2" />
-              </div>
-            </div>
-
-            <div class="p2p-step">
-              <span class="p2p-step-num">2</span>
-              <div>
-                <strong>Share Direct Connection Code:</strong>
-                <div class="input-with-button mt-2">
-                  <input type="text" id="p2p-room-code" readonly value="${this.p2pRoomCode || 'Click Generate Room Code'}" class="form-input font-mono" />
-                  <button type="button" class="btn btn-secondary" id="btn-gen-p2p-code">Generate</button>
-                  <button type="button" class="btn btn-outline" id="btn-copy-p2p-code">${icons.copy(16)} Copy</button>
-                </div>
-                <p class="form-hint">Both parties must keep browser open during direct WebRTC stream.</p>
-              </div>
-            </div>
-
-            <div class="p2p-step">
-              <span class="p2p-step-num">3</span>
-              <div>
-                <strong>Connection Status:</strong>
-                <div class="p2p-status-indicator mt-2">
-                  <span class="p2p-dot ${this.p2pStatus === 'connected' ? 'dot-active' : ''}"></span>
-                  <span id="p2p-status-label">${this.getP2PStatusText()}</span>
-                </div>
-              </div>
-            </div>
+          <!-- P2P Role Switcher Tabs -->
+          <div class="p2p-role-switcher mt-3">
+            <button type="button" class="p2p-tab-btn ${this.p2pRole === 'send' ? 'active' : ''}" id="btn-p2p-role-send">
+              ${icons.uploadCloud(16)} Send Files (Host Room)
+            </button>
+            <button type="button" class="p2p-tab-btn ${this.p2pRole === 'receive' ? 'active' : ''}" id="btn-p2p-role-receive">
+              ${icons.download(16)} Receive Files (Enter Code)
+            </button>
           </div>
+
+          ${this.p2pRole === 'send' ? this.renderP2PSenderUI() : this.renderP2PReceiverUI()}
         </div>
       `;
     }
@@ -147,12 +155,12 @@ export const transfersView = {
               <h2 class="section-title">Ephemeral Self-Destruct Sharing</h2>
               <p class="section-subtitle">Temporary deliverables that automatically purge from storage</p>
             </div>
-            <span class="badge badge-subtle">${icons.clock(12)} Auto-Purge</span>
+            <span class="badge badge-warning">${icons.clock(12)} Auto-Purge Armed</span>
           </div>
 
           <form id="ephemeral-form" class="mt-4">
             <div class="form-group">
-              <label for="ephemeral-file">Select File</label>
+              <label for="ephemeral-file">Select File to Share Ephemerally</label>
               <input type="file" id="ephemeral-file" required class="form-input" />
             </div>
 
@@ -160,14 +168,17 @@ export const transfersView = {
               <div class="form-group">
                 <label for="ephemeral-duration">Purge Timeframe</label>
                 <select id="ephemeral-duration" class="form-select">
-                  <option value="1h">1 Hour (Single Use)</option>
-                  <option value="1d" selected>24 Hours</option>
-                  <option value="burn">Burn After First Download</option>
+                  <option value="burn" selected>🔥 Burn After Single Download (Self-Destruct)</option>
+                  <option value="1h">1 Hour (Single Session)</option>
+                  <option value="1d">24 Hours</option>
+                  <option value="7d">7 Days</option>
                 </select>
+                <small class="form-hint">Files set to "Burn After Single Download" are permanently deleted the moment the recipient downloads them.</small>
               </div>
               <div class="form-group">
-                <label for="ephemeral-pw">Passcode (Optional)</label>
-                <input type="text" id="ephemeral-pw" class="form-input" placeholder="Secret access code" />
+                <label for="ephemeral-pw">Passcode / Secret Key (Recommended)</label>
+                <input type="text" id="ephemeral-pw" class="form-input" placeholder="e.g. SecretKey#99" />
+                <small class="form-hint">Recipient will be blocked until the exact passcode is entered.</small>
               </div>
             </div>
 
@@ -196,14 +207,153 @@ export const transfersView = {
     `;
   },
 
-  getP2PStatusText() {
-    switch (this.p2pStatus) {
-      case 'waiting': return 'Waiting for peer to connect...';
-      case 'connected': return 'Direct WebRTC DataChannel established';
-      case 'transferring': return 'Transferring peer-to-peer...';
-      case 'completed': return 'Transfer complete!';
-      default: return 'Ready to establish direct tunnel';
-    }
+  renderP2PSenderUI() {
+    return `
+      <div class="p2p-subview-panel mt-4 animate-fade-in">
+        <div class="p2p-workflow-steps">
+          <div class="p2p-step">
+            <span class="p2p-step-num">1</span>
+            <div>
+              <strong>Select File to Send:</strong>
+              <input type="file" id="p2p-file-picker" class="form-input mt-2" />
+              <div id="p2p-selected-file-info" class="text-xs text-muted mt-1">
+                ${this.p2pFile ? `Selected: <strong>${this.p2pFile.name}</strong> (${formatBytes(this.p2pFile.size)})` : 'No file chosen yet'}
+              </div>
+            </div>
+          </div>
+
+          <div class="p2p-step">
+            <span class="p2p-step-num">2</span>
+            <div>
+              <strong>Your Direct Connection Room Code:</strong>
+              <div class="p2p-code-display-box mt-2">
+                <div class="p2p-code-chip font-mono text-xl" id="p2p-room-code-label">
+                  ${this.p2pRoomCode || 'Click Generate Room Code'}
+                </div>
+                <div class="flex-center gap-2">
+                  <button type="button" class="btn btn-primary btn-sm" id="btn-gen-p2p-code">
+                    ${icons.refresh(14)} Generate Code
+                  </button>
+                  <button type="button" class="btn btn-outline btn-sm" id="btn-copy-p2p-code">
+                    ${icons.copy(14)} Copy Code
+                  </button>
+                  <button type="button" class="btn btn-outline btn-sm" id="btn-copy-p2p-link">
+                    ${icons.link(14)} Copy Join Link
+                  </button>
+                </div>
+              </div>
+              <p class="form-hint mt-2">
+                Share this 6-character room code with your recipient. Both devices must keep their browser open during the direct transfer.
+              </p>
+            </div>
+          </div>
+
+          <div class="p2p-step">
+            <span class="p2p-step-num">3</span>
+            <div>
+              <strong>Direct Connection & Transfer Status:</strong>
+              <div class="p2p-status-indicator mt-2">
+                <span class="status-pulse-dot ${this.p2pStatus === 'connected' || this.p2pStatus === 'transferring' ? 'dot-active' : ''}"></span>
+                <span id="p2p-status-label" class="font-semibold">${this.p2pStatusMessage}</span>
+              </div>
+
+              <!-- Live Progress Bar -->
+              <div id="p2p-progress-container" class="${this.p2pStatus === 'transferring' ? '' : 'hidden'} mt-3">
+                <div class="progress-meta-row flex-between text-xs text-muted mb-1">
+                  <span id="p2p-progress-percent">0%</span>
+                  <span id="p2p-progress-speed">0 MB/s</span>
+                </div>
+                <div class="progress-bar-track progress-bar-lg">
+                  <div class="progress-bar-fill bg-primary" id="p2p-progress-bar" style="width: 0%;"></div>
+                </div>
+                <div class="text-xs text-muted mt-1" id="p2p-progress-bytes">0 MB / 0 MB</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  renderP2PReceiverUI() {
+    return `
+      <div class="p2p-subview-panel mt-4 animate-fade-in">
+        <div class="p2p-receiver-box glass-panel p-4 text-center mx-auto" style="max-width: 580px;">
+          <div class="receiver-icon-badge mx-auto mb-3">
+            ${icons.download(32)}
+          </div>
+          <h3 class="text-xl font-bold">Receive Files Directly</h3>
+          <p class="text-muted text-sm mt-1">
+            Enter the 6-character room code provided by the sender to establish a direct WebRTC tunnel and download the file.
+          </p>
+
+          <form id="p2p-join-form" class="mt-4">
+            <div class="form-group text-left">
+              <label for="p2p-input-room-code" class="text-xs uppercase font-bold tracking-wider text-muted">
+                Direct Room Code (e.g. ALT-8492)
+              </label>
+              <div class="input-with-button mt-1">
+                <input
+                  type="text"
+                  id="p2p-input-room-code"
+                  class="form-input font-mono text-center text-lg font-bold uppercase tracking-widest"
+                  placeholder="ALT-XXXX"
+                  maxlength="8"
+                  value="${this.p2pRoomCode || ''}"
+                  required
+                />
+                <button type="submit" class="btn btn-primary btn-lg" id="btn-p2p-connect">
+                  ${icons.sparkles(18)} Connect & Receive
+                </button>
+              </div>
+            </div>
+          </form>
+
+          <!-- Receiver Status & Live Transfer Progress -->
+          <div id="p2p-receiver-status-box" class="mt-4 ${this.p2pStatus === 'idle' ? 'hidden' : ''}">
+            <div class="p2p-status-indicator justify-center">
+              <span class="status-pulse-dot ${this.p2pStatus === 'connected' || this.p2pStatus === 'transferring' ? 'dot-active' : ''}"></span>
+              <span id="p2p-receiver-status-label" class="font-semibold">${this.p2pStatusMessage}</span>
+            </div>
+
+            <div id="p2p-receiver-progress-container" class="${this.p2pStatus === 'transferring' ? '' : 'hidden'} mt-3 text-left">
+              <div class="progress-meta-row flex-between text-xs text-muted mb-1">
+                <span id="p2p-rx-filename" class="font-semibold text-main">Receiving file...</span>
+                <span id="p2p-rx-percent">0%</span>
+              </div>
+              <div class="progress-bar-track progress-bar-lg">
+                <div class="progress-bar-fill bg-success" id="p2p-rx-bar" style="width: 0%;"></div>
+              </div>
+              <div class="flex-between text-xs text-muted mt-1">
+                <span id="p2p-rx-bytes">0 MB</span>
+                <span id="p2p-rx-speed">0 MB/s</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Received File Card -->
+          <div id="p2p-received-result-box" class="${this.receivedFileResult ? '' : 'hidden'} mt-4">
+            ${this.receivedFileResult ? `
+              <div class="alert alert-success text-left animate-scale-up">
+                <div class="flex-between">
+                  <div>
+                    <h4 class="font-bold text-success flex-center gap-2">
+                      ${icons.check(18)} File Received Successfully!
+                    </h4>
+                    <p class="text-sm mt-1">
+                      <strong>${this.receivedFileResult.fileName}</strong> (${formatBytes(this.receivedFileResult.fileSize)})
+                    </p>
+                  </div>
+                  <button type="button" class="btn btn-primary btn-sm" id="btn-save-rx-file">
+                    ${icons.download(16)} Save File
+                  </button>
+                </div>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      </div>
+    `;
   },
 
   bindEvents(container) {
@@ -213,6 +363,17 @@ export const transfersView = {
         this.activeTab = card.dataset.tab;
         this.render(container);
       });
+    });
+
+    // P2P Role switcher buttons
+    container.querySelector('#btn-p2p-role-send')?.addEventListener('click', () => {
+      this.p2pRole = 'send';
+      this.render(container);
+    });
+
+    container.querySelector('#btn-p2p-role-receive')?.addEventListener('click', () => {
+      this.p2pRole = 'receive';
+      this.render(container);
     });
 
     // Adaptive mode events
@@ -227,7 +388,7 @@ export const transfersView = {
 
       const processFile = (file) => {
         if (!file) return;
-        filenameText.innerHTML = `Analyzing: <strong>${file.name}</strong> (${(file.size / (1024 * 1024)).toFixed(1)} MB)`;
+        filenameText.innerHTML = `Analyzing: <strong>${file.name}</strong> (${formatBytes(file.size)})`;
         const rec = adaptiveTransferService.recommendMode({
           fileSize: file.size,
           isRecipientOnline: false,
@@ -238,11 +399,11 @@ export const transfersView = {
         resultBox.classList.remove('hidden');
         resultBox.innerHTML = `
           <div class="recommendation-card glass-panel animate-scale-up">
-            <div class="rec-badge-row">
+            <div class="rec-badge-row flex-between">
               <span class="badge badge-success">${rec.badge}</span>
               <span class="font-semibold text-primary">${rec.title}</span>
             </div>
-            <p class="rec-explanation">${rec.explanation}</p>
+            <p class="rec-explanation mt-2">${rec.explanation}</p>
             <div class="rec-pros-cons mt-3">
               <div class="pros-col">
                 <strong>Advantages:</strong>
@@ -264,6 +425,7 @@ export const transfersView = {
         resultBox.querySelector('#btn-proceed-recommended')?.addEventListener('click', () => {
           if (rec.mode === TRANSFER_MODES.P2P) {
             this.activeTab = 'p2p';
+            this.p2pFile = file;
             this.render(container);
           } else if (rec.mode === TRANSFER_MODES.EPHEMERAL) {
             this.activeTab = 'ephemeral';
@@ -287,18 +449,37 @@ export const transfersView = {
       }
     }
 
-    // P2P WebRTC events
-    if (this.activeTab === 'p2p') {
+    // P2P SENDER events
+    if (this.activeTab === 'p2p' && this.p2pRole === 'send') {
+      const filePicker = container.querySelector('#p2p-file-picker');
       const genCodeBtn = container.querySelector('#btn-gen-p2p-code');
       const copyCodeBtn = container.querySelector('#btn-copy-p2p-code');
-      const codeInput = container.querySelector('#p2p-room-code');
+      const copyLinkBtn = container.querySelector('#btn-copy-p2p-link');
+      const codeLabel = container.querySelector('#p2p-room-code-label');
+
+      filePicker?.addEventListener('change', (e) => {
+        if (e.target.files?.length) {
+          this.p2pFile = e.target.files[0];
+          container.querySelector('#p2p-selected-file-info').innerHTML = `
+            Selected: <strong>${this.p2pFile.name}</strong> (${formatBytes(this.p2pFile.size)})
+          `;
+          if (!this.p2pRoomCode) {
+            genCodeBtn.click();
+          } else {
+            this.startHostSession(container);
+          }
+        }
+      });
 
       genCodeBtn?.addEventListener('click', () => {
-        this.p2pRoomCode = 'alt-room-' + Math.random().toString(36).substring(2, 8);
-        codeInput.value = this.p2pRoomCode;
-        this.p2pStatus = 'waiting';
-        container.querySelector('#p2p-status-label').textContent = this.getP2PStatusText();
-        toast.info('P2P signaling room initialized. Share this code with recipient.');
+        this.p2pRoomCode = p2pTransferService.generateRoomCode();
+        if (codeLabel) codeLabel.textContent = this.p2pRoomCode;
+        toast.info(`Room code ${this.p2pRoomCode} generated.`);
+        if (this.p2pFile) {
+          this.startHostSession(container);
+        } else {
+          toast.warning('Select a file to send above.');
+        }
       });
 
       copyCodeBtn?.addEventListener('click', () => {
@@ -307,6 +488,41 @@ export const transfersView = {
           toast.success('Room code copied to clipboard!');
         } else {
           toast.warning('Generate a room code first.');
+        }
+      });
+
+      copyLinkBtn?.addEventListener('click', () => {
+        if (this.p2pRoomCode) {
+          const origin = window.location.origin;
+          const joinUrl = `${origin}/#transfers?role=receive&room=${encodeURIComponent(this.p2pRoomCode)}`;
+          navigator.clipboard.writeText(joinUrl);
+          toast.success('Direct receiver link copied! Send it to the recipient.');
+        } else {
+          toast.warning('Generate a room code first.');
+        }
+      });
+    }
+
+    // P2P RECEIVER events
+    if (this.activeTab === 'p2p' && this.p2pRole === 'receive') {
+      const form = container.querySelector('#p2p-join-form');
+      const roomInput = container.querySelector('#p2p-input-room-code');
+
+      form?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const code = (roomInput.value || '').trim().toUpperCase();
+        if (!code) {
+          toast.warning('Please enter a room code');
+          return;
+        }
+
+        this.p2pRoomCode = code;
+        this.startClientSession(container, code);
+      });
+
+      container.querySelector('#btn-save-rx-file')?.addEventListener('click', () => {
+        if (this.receivedFileResult?.blob) {
+          this.triggerBlobDownload(this.receivedFileResult.blob, this.receivedFileResult.fileName);
         }
       });
     }
@@ -330,25 +546,35 @@ export const transfersView = {
         const file = fileInput.files[0];
         const btn = container.querySelector('#btn-create-ephemeral');
         btn.disabled = true;
-        btn.textContent = 'Creating Ephemeral Share...';
+        btn.textContent = 'Arming Ephemeral Share...';
 
         try {
           const uploaded = await filesService.uploadFile(file);
+          const isBurn = duration === 'burn';
           const link = await shareService.createShareLink(uploaded.id, {
-            duration: duration === 'burn' ? '1h' : duration,
+            duration: isBurn ? '1h' : duration,
             password,
-            maxDownloads: duration === 'burn' ? 1 : null,
+            maxDownloads: isBurn ? 1 : null,
           });
 
           resultBox.classList.remove('hidden');
           resultBox.innerHTML = `
-            <div class="result-success-box glass-panel animate-scale-up">
-              <div class="text-success font-semibold mb-2">${icons.check(16)} Ephemeral Share Active</div>
-              <p>This share link will auto-purge based on your timeframe:</p>
-              <div class="input-with-button mt-2">
+            <div class="result-success-box glass-panel animate-scale-up p-4">
+              <div class="text-success font-semibold text-base mb-2 flex-center gap-2">
+                ${icons.check(20)} Ephemeral Share Armed & Active
+              </div>
+              <p class="text-sm">
+                ${isBurn ? '🔥 <strong>Self-Destruct Active:</strong> This file will permanently burn and purge immediately after 1 download.' : `This share will auto-purge in ${duration}.`}
+              </p>
+              <div class="input-with-button mt-3">
                 <input type="text" readonly value="${link.shareUrl}" class="form-input font-mono" id="ephemeral-url-input" />
                 <button type="button" class="btn btn-primary" id="btn-copy-ephemeral">Copy Link</button>
               </div>
+              ${link.directFileUrl ? `
+                <div class="mt-2 text-xs text-muted">
+                  Direct raw link: <code class="font-mono">${link.directFileUrl}</code>
+                </div>
+              ` : ''}
             </div>
           `;
 
@@ -366,5 +592,113 @@ export const transfersView = {
         }
       });
     }
+  },
+
+  startHostSession(container) {
+    if (!this.p2pFile || !this.p2pRoomCode) return;
+
+    const statusLabel = container.querySelector('#p2p-status-label');
+    const progressContainer = container.querySelector('#p2p-progress-container');
+    const progressBar = container.querySelector('#p2p-progress-bar');
+    const progressPercent = container.querySelector('#p2p-progress-percent');
+    const progressSpeed = container.querySelector('#p2p-progress-speed');
+    const progressBytes = container.querySelector('#p2p-progress-bytes');
+
+    p2pTransferService.startSenderSession({
+      roomCode: this.p2pRoomCode,
+      file: this.p2pFile,
+      onStatus: (status, msg) => {
+        this.p2pStatus = status;
+        this.p2pStatusMessage = msg;
+        if (statusLabel) statusLabel.textContent = msg;
+        if (status === 'transferring' && progressContainer) {
+          progressContainer.classList.remove('hidden');
+        }
+      },
+      onProgress: ({ sentBytes, totalBytes, percent, speedMBps }) => {
+        this.p2pStatus = 'transferring';
+        if (progressContainer) progressContainer.classList.remove('hidden');
+        if (progressBar) progressBar.style.width = `${percent}%`;
+        if (progressPercent) progressPercent.textContent = `${percent}%`;
+        if (progressSpeed) progressSpeed.textContent = `${speedMBps} MB/s`;
+        if (progressBytes) progressBytes.textContent = `${formatBytes(sentBytes)} / ${formatBytes(totalBytes)}`;
+      },
+      onComplete: () => {
+        toast.success(`"${this.p2pFile.name}" transferred successfully via direct WebRTC tunnel!`);
+      },
+      onError: (err) => {
+        toast.error(`P2P transfer error: ${err.message}`);
+      },
+    });
+  },
+
+  startClientSession(container, roomCode) {
+    const statusBox = container.querySelector('#p2p-receiver-status-box');
+    const statusLabel = container.querySelector('#p2p-receiver-status-label');
+    const progressContainer = container.querySelector('#p2p-receiver-progress-container');
+    const rxBar = container.querySelector('#p2p-rx-bar');
+    const rxPercent = container.querySelector('#p2p-rx-percent');
+    const rxSpeed = container.querySelector('#p2p-rx-speed');
+    const rxBytes = container.querySelector('#p2p-rx-bytes');
+    const rxFilename = container.querySelector('#p2p-rx-filename');
+    const connectBtn = container.querySelector('#btn-p2p-connect');
+
+    if (connectBtn) {
+      connectBtn.disabled = true;
+      connectBtn.innerHTML = `${icons.refresh(16)} Connecting...`;
+    }
+
+    if (statusBox) statusBox.classList.remove('hidden');
+
+    p2pTransferService.startReceiverSession({
+      roomCode,
+      onStatus: (status, msg) => {
+        this.p2pStatus = status;
+        this.p2pStatusMessage = msg;
+        if (statusLabel) statusLabel.textContent = msg;
+        if (status === 'transferring' && progressContainer) {
+          progressContainer.classList.remove('hidden');
+        }
+      },
+      onProgress: ({ receivedBytes, totalBytes, percent, speedMBps, fileName }) => {
+        this.p2pStatus = 'transferring';
+        if (progressContainer) progressContainer.classList.remove('hidden');
+        if (rxBar) rxBar.style.width = `${percent}%`;
+        if (rxPercent) rxPercent.textContent = `${percent}%`;
+        if (rxSpeed) rxSpeed.textContent = `${speedMBps} MB/s`;
+        if (rxBytes) rxBytes.textContent = `${formatBytes(receivedBytes)} of ${formatBytes(totalBytes)}`;
+        if (rxFilename && fileName) rxFilename.textContent = `Receiving: ${fileName}`;
+      },
+      onFileReceived: ({ blob, fileName, fileSize }) => {
+        this.receivedFileResult = { blob, fileName, fileSize };
+        this.triggerBlobDownload(blob, fileName);
+        toast.success(`File "${fileName}" received and downloaded!`);
+        if (connectBtn) {
+          connectBtn.disabled = false;
+          connectBtn.innerHTML = `${icons.check(18)} Received!`;
+        }
+        this.render(container);
+      },
+      onError: (err) => {
+        toast.error(`Receiver error: ${err.message}`);
+        if (connectBtn) {
+          connectBtn.disabled = false;
+          connectBtn.innerHTML = `${icons.sparkles(18)} Connect & Receive`;
+        }
+      },
+    });
+  },
+
+  triggerBlobDownload(blob, fileName) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 1000);
   },
 };

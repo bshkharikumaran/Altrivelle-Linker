@@ -40,7 +40,7 @@ function escapeHtml(str) {
 class AppRouter {
   constructor() {
     this.currentUser = null;
-    this.currentRoute = 'dashboard';
+    this.currentRoute = 'showcase';
   }
 
   async init() {
@@ -71,8 +71,10 @@ class AppRouter {
   }
 
   async handleRouting() {
-    let hash = window.location.hash.replace('#', '').trim();
-    if (!hash) hash = 'dashboard';
+    let rawHash = window.location.hash.replace('#', '').trim();
+    // Support URL query params like #transfers?role=receive&room=ALT-8492
+    let hash = rawHash.split('?')[0] || '';
+    if (!hash) hash = 'showcase';
 
     // Route protection: if auth view, handle specifically
     this.currentRoute = hash;
@@ -83,7 +85,7 @@ class AppRouter {
     const mobileHeader = document.querySelector('.mobile-header');
     const topBar = document.querySelector('.app-topbar');
 
-    // If auth or landing view, adapt layout
+    // If auth view, adapt layout
     if (hash === 'auth') {
       if (sidebar) sidebar.classList.add('hidden');
       if (mobileHeader) mobileHeader.classList.add('hidden');
@@ -92,7 +94,7 @@ class AppRouter {
       return;
     }
 
-    if (hash === 'landing') {
+    if (hash === 'landing' || hash === 'showcase') {
       if (sidebar) sidebar.classList.remove('hidden');
       if (mobileHeader) mobileHeader.classList.remove('hidden');
       if (topBar) topBar.classList.remove('hidden');
@@ -153,7 +155,9 @@ class AppRouter {
 
   updateActiveNav() {
     document.querySelectorAll('.sidebar-nav .nav-link').forEach((link) => {
-      if (link.dataset.route === this.currentRoute) {
+      const route = link.dataset.route;
+      const isShowcase = (route === 'showcase' || route === 'landing') && (this.currentRoute === 'showcase' || this.currentRoute === 'landing');
+      if (route === this.currentRoute || isShowcase) {
         link.classList.add('active');
       } else {
         link.classList.remove('active');

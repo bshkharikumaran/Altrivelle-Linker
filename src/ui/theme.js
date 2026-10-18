@@ -4,8 +4,8 @@ export const themeManager = {
 
   init() {
     const savedTheme = localStorage.getItem('altrivelle_theme') || localStorage.getItem('filelink_theme');
-    // Default appearance is Light theme per Altrivelle design standards
-    this.currentTheme = savedTheme || 'light';
+    // Default appearance is Dark theme per Altrivelle industrial tech standards
+    this.currentTheme = savedTheme || 'dark';
     this.applyTheme(this.currentTheme);
   },
 

@@ -100,9 +100,29 @@ export default async function handler(req, res) {
 
     // 5. Password protection check
     const hasPassword = Boolean(shareLink.password_hash);
+
+    // Explicit passcode verification endpoint
+    if (action === 'verify') {
+      const providedPassword = (req.body && req.body.password) || password;
+      if (!hasPassword || (providedPassword && providedPassword.trim() === shareLink.password_hash.trim())) {
+        return res.status(200).json({
+          success: true,
+          verified: true,
+          developer: 'ALTRIVELLE TECHNOLOGIES',
+        });
+      } else {
+        return res.status(401).json({
+          success: false,
+          error: 'Incorrect passcode. Please check the secret access code and try again.',
+          requirePassword: true,
+          developer: 'ALTRIVELLE TECHNOLOGIES',
+        });
+      }
+    }
+
     if (hasPassword && (action === 'download' || isDirectFileRequest)) {
       const providedPassword = (req.body && req.body.password) || password;
-      if (!providedPassword || providedPassword !== shareLink.password_hash) {
+      if (!providedPassword || providedPassword.trim() !== shareLink.password_hash.trim()) {
         return res.status(401).json({
           success: false,
           error: 'Invalid password. Please enter the correct password to access this file.',

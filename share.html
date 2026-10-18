@@ -1,11 +1,25 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Altrivelle Linker — One Link. Smarter Sharing. | Developed by ALTRIVELLE TECHNOLOGIES</title>
   <meta name="description" content="View and download securely shared files on Altrivelle Linker, developed by ALTRIVELLE TECHNOLOGIES." />
   <link rel="icon" type="image/png" href="/assets/altrivelle-linker-logo.png" />
+  <script>
+    (function() {
+      try {
+        var t = localStorage.getItem('altrivelle_theme') || localStorage.getItem('filelink_theme') || 'dark';
+        if (t === 'dark' || !t) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      } catch(e) {
+        document.documentElement.classList.add('dark');
+      }
+    })();
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">

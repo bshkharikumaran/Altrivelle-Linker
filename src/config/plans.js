@@ -8,7 +8,7 @@ export const SUBSCRIPTION_PLANS = {
     id: 'community',
     name: 'Community',
     badge: 'Open Core',
-    price: '$0',
+    price: '₹0',
     interval: 'forever',
     description: 'Essential file sharing and peer-to-peer transfers for individuals and students.',
     limits: {
@@ -38,7 +38,7 @@ export const SUBSCRIPTION_PLANS = {
     id: 'pro',
     name: 'Pro',
     badge: 'Creator & Dev',
-    price: '$9',
+    price: '₹499',
     interval: '/month',
     description: 'High-bandwidth sharing, developer automation, and custom short links for creators.',
     limits: {
@@ -70,7 +70,7 @@ export const SUBSCRIPTION_PLANS = {
     id: 'team',
     name: 'Team Workspace',
     badge: 'Enterprise Ready',
-    price: '$29',
+    price: '₹1,999',
     interval: '/month',
     description: 'Collaborative workspaces, shared quotas, team permissions, and audit logs.',
     limits: {

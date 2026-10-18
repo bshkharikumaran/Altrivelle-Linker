@@ -41,7 +41,7 @@ function escapeHtml(str) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // Initialize light/dark theme (defaults to light mode)
+  // Initialize dark theme by default
   themeManager.init();
 
   // Bind theme toggle button
@@ -88,23 +88,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (!result || !result.success) {
       const errorMsg = result?.error || 'This link has expired or has been revoked by the owner.';
-      const isExpired = errorMsg.toLowerCase().includes('expired');
+      const isExpired = errorMsg.toLowerCase().includes('expired') || errorMsg.toLowerCase().includes('limit');
       const isRevoked = errorMsg.toLowerCase().includes('revoked');
+      const isSelfDestructed = errorMsg.toLowerCase().includes('limit') || errorMsg.toLowerCase().includes('destruct');
 
       container.innerHTML = `
         <div class="share-status-card error-card glass-panel animate-scale-up">
           <div class="status-icon-wrapper ${isExpired ? 'text-warning' : 'text-danger'}">
-            ${isExpired ? icons.clock(40) : icons.shieldAlert(40)}
+            ${isSelfDestructed ? icons.clock(40) : isExpired ? icons.clock(40) : icons.shieldAlert(40)}
           </div>
-          <h2>${isExpired ? 'Share Link Expired' : isRevoked ? 'Access Revoked' : 'Share Link Unavailable'}</h2>
+          <h2>${isSelfDestructed ? 'File Has Self-Destructed' : isExpired ? 'Share Link Expired' : isRevoked ? 'Access Revoked' : 'Share Link Unavailable'}</h2>
           <p class="error-detail-msg">${escapeHtml(errorMsg)}</p>
           <div class="info-checklist">
-            <p>&bull; Links expire automatically based on the sender's security policy.</p>
-            <p>&bull; The file owner may have revoked access or reached download limits.</p>
+            <p>&bull; ${isSelfDestructed ? 'This was an ephemeral transfer that permanently purged after single-use download.' : 'Links expire automatically based on the sender’s security policy.'}</p>
+            <p>&bull; The file owner may have revoked access or set a burn-after-reading rule.</p>
             <p>&bull; Contact the sender if you require renewed access to this file.</p>
           </div>
           <div class="status-action-row mt-4">
-            <a href="/" class="btn btn-secondary">Open Altrivelle Linker</a>
+            <a href="/" class="btn btn-primary">Open Altrivelle Linker</a>
             <button type="button" class="btn btn-outline" id="btn-retry-share">Retry Verification</button>
           </div>
           <div class="developer-note">
@@ -125,18 +126,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Check if password required
     if (link.has_password) {
       container.innerHTML = `
-        <div class="share-card glass-panel animate-scale-up">
+        <div class="share-card glass-panel animate-scale-up" id="share-password-card">
           <div class="share-password-box">
             <div class="password-lock-icon">${icons.lock(36)}</div>
             <h2>Password Protected Transfer</h2>
-            <p>This file is protected with end-to-end access authentication by the owner.</p>
+            <p>This file is protected with end-to-end access authentication by the owner. Enter the secret passcode to access file details and download.</p>
             
-            <form id="share-password-form" class="mt-4">
+            <div id="pw-error-banner" class="alert alert-danger hidden mt-3"></div>
+
+            <form id="share-password-form" class="mt-3">
               <div class="form-group text-left">
                 <label for="input-share-pw">Passcode / Key</label>
-                <input type="password" id="input-share-pw" class="form-input" placeholder="Enter file password" required autofocus />
+                <input type="password" id="input-share-pw" class="form-input" placeholder="Enter secret passcode" required autofocus />
               </div>
-              <button type="submit" class="btn btn-primary btn-block" id="btn-unlock-file">
+              <button type="submit" class="btn btn-primary btn-block btn-lg" id="btn-unlock-file">
                 ${icons.key(18)} Unlock & Access File
               </button>
             </form>
@@ -148,18 +151,56 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>
       `;
 
-      document.getElementById('share-password-form')?.addEventListener('submit', async (e) => {
+      const pwCard = document.getElementById('share-password-card');
+      const pwForm = document.getElementById('share-password-form');
+      const pwInput = document.getElementById('input-share-pw');
+      const pwErrorBanner = document.getElementById('pw-error-banner');
+      const unlockBtn = document.getElementById('btn-unlock-file');
+
+      pwForm?.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const enteredPassword = document.getElementById('input-share-pw')?.value;
-        const unlockBtn = document.getElementById('btn-unlock-file');
+        const enteredPassword = (pwInput?.value || '').trim();
+        if (!enteredPassword) return;
+
         if (unlockBtn) {
           unlockBtn.disabled = true;
           unlockBtn.textContent = 'Verifying Passcode...';
         }
+        if (pwErrorBanner) pwErrorBanner.classList.add('hidden');
 
         try {
+          // Explicitly verify password before granting access to file details or download
+          const verifyResult = await shareService.verifyPassword(token, enteredPassword);
+          if (!verifyResult || !verifyResult.success) {
+            const errMsg = verifyResult?.error || 'Incorrect passcode. Please check the secret code and try again.';
+            if (pwErrorBanner) {
+              pwErrorBanner.textContent = `❌ ${errMsg}`;
+              pwErrorBanner.classList.remove('hidden');
+            }
+            if (pwCard) {
+              pwCard.classList.add('shake-error');
+              setTimeout(() => pwCard.classList.remove('shake-error'), 600);
+            }
+            toast.error(errMsg);
+            if (pwInput) {
+              pwInput.select();
+              pwInput.focus();
+            }
+            if (unlockBtn) {
+              unlockBtn.disabled = false;
+              unlockBtn.innerHTML = `${icons.key(18)} Unlock & Access File`;
+            }
+            return;
+          }
+
+          // Passcode is verified! Proceed to reveal the file card
+          toast.success('Passcode verified successfully.');
           renderActiveFileCard(container, file, link, token, enteredPassword);
         } catch (pwErr) {
+          if (pwErrorBanner) {
+            pwErrorBanner.textContent = `❌ ${pwErr.message || 'Incorrect passcode. Access denied.'}`;
+            pwErrorBanner.classList.remove('hidden');
+          }
           toast.error(pwErr.message || 'Incorrect passcode');
           if (unlockBtn) {
             unlockBtn.disabled = false;
@@ -195,9 +236,21 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function renderActiveFileCard(container, file, link, token, password = null) {
   const mime = (file.mime_type || '').toLowerCase();
   const ext = file.name.split('.').pop()?.toLowerCase() || '';
+  const isBurnAfterRead = link.max_downloads === 1;
 
   container.innerHTML = `
     <div class="share-file-card glass-panel animate-scale-up">
+      ${isBurnAfterRead ? `
+        <div class="ephemeral-alert-banner alert alert-warning mb-4">
+          <div class="font-bold text-warning flex-center gap-2">
+            ${icons.clock(18)} EPHEMERAL TRANSFER &bull; SELF-DESTRUCT ARMED
+          </div>
+          <p class="text-xs mt-1">
+            This asset is programmed to self-destruct upon single download. Once downloaded, this link and file will be permanently purged from the server.
+          </p>
+        </div>
+      ` : ''}
+
       <!-- File Main Header -->
       <div class="share-file-header">
         <div class="share-file-icon">
@@ -209,23 +262,27 @@ async function renderActiveFileCard(container, file, link, token, password = nul
             <span class="meta-tag badge-size">${formatBytes(file.size_bytes)}</span>
             <span class="meta-separator">&bull;</span>
             <span class="meta-tag badge-expiry">Expires: ${formatDate(link.expires_at)}</span>
-            ${link.max_downloads ? `<span class="meta-separator">&bull;</span><span class="meta-tag badge-downloads">Downloads: ${link.download_count}/${link.max_downloads}</span>` : ''}
+            ${link.max_downloads ? `<span class="meta-separator">&bull;</span><span class="meta-tag badge-downloads ${isBurnAfterRead ? 'badge-warning' : ''}">Downloads: ${link.download_count}/${link.max_downloads}</span>` : ''}
           </div>
         </div>
       </div>
 
-      <!-- Preview Window if image or video -->
+      <!-- Preview Window if image or media -->
       <div id="share-inline-preview" class="share-preview-box">
         <div class="preview-placeholder">
           <span>Click download to verify and save file to your device</span>
         </div>
       </div>
 
-      <!-- Action Button -->
+      <!-- Download Action Button -->
       <div class="share-file-actions">
-        <button type="button" class="btn btn-primary btn-lg btn-download-primary" id="btn-download-shared-file">
+        <button type="button" class="btn btn-primary btn-lg btn-download-primary pulse-glow-btn" id="btn-download-shared-file">
           ${icons.download(22)} Download File
         </button>
+      </div>
+
+      <div id="download-destruct-notice" class="hidden mt-3 text-center text-xs text-warning font-semibold">
+        🔥 Download initiated. Self-destruct completed — file record purged from server.
       </div>
 
       <!-- Trust Passport Section -->
@@ -236,7 +293,7 @@ async function renderActiveFileCard(container, file, link, token, password = nul
           mimeType: file.mime_type,
           sha256: file.sha256_hash || null,
           storageClass: 'Private Encrypted Object Storage',
-          sharingMode: 'Adaptive Transfer (Mode A: Cloud)',
+          sharingMode: isBurnAfterRead ? 'Ephemeral Transfer (Mode B: Auto-Purge)' : 'Adaptive Transfer (Mode A: Cloud)',
           expiresAt: link.expires_at,
           downloadCount: link.download_count,
           maxDownloads: link.max_downloads,
@@ -254,6 +311,8 @@ async function renderActiveFileCard(container, file, link, token, password = nul
 
   // Download handler
   const downloadBtn = container.querySelector('#btn-download-shared-file');
+  const destructNotice = container.querySelector('#download-destruct-notice');
+
   downloadBtn?.addEventListener('click', async () => {
     downloadBtn.disabled = true;
     downloadBtn.innerHTML = `
@@ -269,8 +328,17 @@ async function renderActiveFileCard(container, file, link, token, password = nul
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
+
         toast.success(`Download started for "${file.name}"`);
         downloadBtn.innerHTML = `${icons.check(20)} Download Started`;
+
+        if (isBurnAfterRead) {
+          if (destructNotice) destructNotice.classList.remove('hidden');
+          downloadBtn.disabled = true;
+          downloadBtn.innerHTML = `🔥 File Self-Destructed`;
+          downloadBtn.classList.remove('btn-primary');
+          downloadBtn.classList.add('btn-secondary');
+        }
       }
     } catch (err) {
       console.error('Download error:', err);

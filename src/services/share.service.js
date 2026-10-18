@@ -374,5 +374,51 @@ export const shareService = {
     if (error) throw error;
     return data.signedUrl;
   },
+
+  // Verify passcode with serverless API and client fallback
+  async verifyPassword(token, password) {
+    const cleanToken = (token || '').trim();
+    const cleanPw = (password || '').trim();
+
+    // 1. Try serverless verify endpoint
+    try {
+      const res = await fetch(
+        `/api/share/${encodeURIComponent(cleanToken)}?action=verify&password=${encodeURIComponent(cleanPw)}`
+      );
+      if (res.ok) {
+        return { success: true };
+      }
+      if (res.status === 401) {
+        const json = await res.json().catch(() => null);
+        return {
+          success: false,
+          error: json?.error || 'Incorrect passcode. Access denied.',
+        };
+      }
+    } catch {
+      // Continue to DB check
+    }
+
+    // 2. Direct Supabase fallback
+    try {
+      const supabase = getSupabase();
+      const { data: link, error } = await supabase
+        .from('share_links')
+        .select('password_hash')
+        .eq('token', cleanToken)
+        .maybeSingle();
+
+      if (error || !link) {
+        return { success: false, error: 'Could not verify passcode' };
+      }
+
+      if (!link.password_hash || link.password_hash.trim() === cleanPw) {
+        return { success: true };
+      }
+      return { success: false, error: 'Incorrect passcode. Please check the access code and try again.' };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
 };
 

@@ -7,6 +7,7 @@
 
 import { icons } from '../ui/icons.js';
 import { APP_CONFIG } from '../config.js';
+import { SUBSCRIPTION_PLANS } from '../config/plans.js';
 
 export const landingView = {
   render(container) {
@@ -18,9 +19,9 @@ export const landingView = {
           <div class="landing-glow glow-hero-2"></div>
 
           <div class="hero-content-box">
-            <div class="hero-badge animate-scale-up">
+            <div class="hero-badge animate-float">
               <span class="badge-icon">${icons.sparkles(16)}</span>
-              <span>Developed by ALTRIVELLE TECHNOLOGIES</span>
+              <span>Conceived & Developed by ALTRIVELLE TECHNOLOGIES</span>
             </div>
 
             <h1 class="hero-headline">
@@ -28,73 +29,194 @@ export const landingView = {
             </h1>
 
             <p class="hero-subtext">
-              Send files. Receive files. Control access. Automate everything. An innovative, production-oriented file sharing platform built on zero-trust storage and open architecture.
+              Send files. Receive files. Control access. Automate everything. An industrial-grade, zero-trust file delivery engine engineered for maximum security, instantaneous peer-to-peer tunnels, and developer autonomy.
             </p>
 
             <div class="hero-cta-group">
-              <a href="#dashboard" class="btn btn-primary btn-lg">
+              <a href="#dashboard" class="btn btn-primary btn-lg pulse-glow-btn">
                 ${icons.uploadCloud(20)} Launch App Dashboard
               </a>
               <a href="#transfers" class="btn btn-outline btn-lg">
-                Explore Adaptive Transfers
+                ${icons.share(18)} Direct P2P Device Transfer
               </a>
             </div>
 
             <!-- Hero Feature Pills -->
             <div class="hero-feature-pills mt-4">
-              <span class="pill-item">${icons.shield(14)} Trust Passport &trade;</span>
-              <span class="pill-item">${icons.sparkles(14)} Direct WebRTC P2P</span>
-              <span class="pill-item">${icons.uploadCloud(14)} DropBox File Requests</span>
-              <span class="pill-item">${icons.hardDrive(14)} BYOS Storage Abstraction</span>
+              <span class="pill-item">${icons.shield(14)} Trust Passport &trade; Cryptography</span>
+              <span class="pill-item">${icons.sparkles(14)} Direct WebRTC P2P (Zero Cloud)</span>
+              <span class="pill-item">${icons.clock(14)} Ephemeral Self-Destruct</span>
+              <span class="pill-item">${icons.uploadCloud(14)} Client DropBox Requests</span>
             </div>
           </div>
         </section>
 
-        <!-- Pillars Section -->
+        <!-- Live Architecture & Mode Selector Showcase -->
+        <section class="transfer-showcase-matrix mt-5">
+          <div class="section-card-header text-center mx-auto" style="max-width: 680px;">
+            <div class="badge badge-primary mb-2">Multi-Mode Routing</div>
+            <h2 class="section-title text-2xl">Adaptive Transfer Engine</h2>
+            <p class="section-subtitle">Altrivelle Linker dynamically routes payloads across three specialized zero-trust transfer architectures.</p>
+          </div>
+
+          <div class="transfer-modes-grid mt-4">
+            <div class="transfer-mode-card glass-panel animate-scale-up">
+              <div class="mode-icon-box text-indigo">${icons.share(26)}</div>
+              <h3>Direct Device-to-Device</h3>
+              <p>Direct WebRTC DataChannel browser-to-browser stream. Gigabytes move at LAN or fiber line rate with zero server storage residency.</p>
+              <span class="mode-pill">P2P Room Code &bull; 0 KB Cloud</span>
+              <div class="mt-3">
+                <a href="#transfers" class="btn btn-sm btn-outline">Test Device Transfer &rarr;</a>
+              </div>
+            </div>
+
+            <div class="transfer-mode-card glass-panel animate-scale-up">
+              <div class="mode-icon-box text-warning">${icons.clock(26)}</div>
+              <h3>Ephemeral Self-Destruct</h3>
+              <p>Self-immolating shares with strictly enforced burn-after-reading policies or time-bound expiration locks that wipe data immediately.</p>
+              <span class="mode-pill">Burn After 1 Download</span>
+              <div class="mt-3">
+                <a href="#transfers" class="btn btn-sm btn-outline">Explore Ephemeral &rarr;</a>
+              </div>
+            </div>
+
+            <div class="transfer-mode-card glass-panel animate-scale-up">
+              <div class="mode-icon-box text-emerald">${icons.hardDrive(26)}</div>
+              <h3>Persistent Cloud Storage</h3>
+              <p>Cryptographically verified, owner-scoped Supabase object storage with signed download URLs, fine-grained access, and SHA-256 provenance.</p>
+              <span class="mode-pill">High Availability &bull; Encrypted</span>
+              <div class="mt-3">
+                <a href="#files" class="btn btn-sm btn-outline">Manage Cloud Files &rarr;</a>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Four Flagship Innovations -->
         <section class="landing-pillars-section mt-5">
           <div class="section-card-header text-center mx-auto" style="max-width: 650px;">
+            <div class="badge badge-success mb-2">Built for Performance</div>
             <h2 class="section-title text-2xl">The Four Flagship Innovations</h2>
-            <p class="section-subtitle">Engineered to transcend generic cloud storage with intelligent routing and provenance</p>
+            <p class="section-subtitle">Engineered to transcend generic cloud storage with verifiable integrity and developer workflows</p>
           </div>
 
           <div class="pillars-grid mt-4">
             <div class="pillar-card glass-panel">
               <div class="pillar-icon text-primary">${icons.sparkles(28)}</div>
               <h3>Adaptive Transfer</h3>
-              <p>Dynamically chooses between Persistent Cloud storage, Ephemeral self-destructing links, and Direct Browser-to-Browser WebRTC tunnels.</p>
+              <p>Intelligently balances bandwidth, recipient presence, and file sensitivity to select between Persistent, Ephemeral, and Direct P2P.</p>
             </div>
 
             <div class="pillar-card glass-panel">
               <div class="pillar-icon text-indigo">${icons.shield(28)}</div>
               <h3>Trust Passport &trade;</h3>
-              <p>Transparent security panel displaying cryptographic SHA-256 integrity checksums, expiration countdowns, and quota limits for every shared asset.</p>
+              <p>Transparent cryptographic security card showing SHA-256 integrity checksums, expiration countdowns, and quota metrics for every shared link.</p>
             </div>
 
             <div class="pillar-card glass-panel">
               <div class="pillar-icon text-emerald">${icons.uploadCloud(28)}</div>
               <h3>DropBox File Requests</h3>
-              <p>Generate secure, isolated upload links to receive assignments or client deliverables without forcing contributors to create accounts.</p>
+              <p>Generate isolated client upload links. External stakeholders can drop deliverables directly into your storage without creating an account.</p>
             </div>
 
             <div class="pillar-card glass-panel">
               <div class="pillar-icon text-purple">${icons.hardDrive(28)}</div>
-              <h3>Developer Flow</h3>
-              <p>Full REST API, official CLI binary tool, and HMAC-SHA256 signed webhooks to automate your release workflows and CI/CD pipelines.</p>
+              <h3>Developer Flow & CLI</h3>
+              <p>Full REST API, official CLI binary tool, and HMAC-SHA256 signed webhooks to seamlessly automate your CI/CD delivery pipelines.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Pricing in Indian Rupees (INR) Showcase -->
+        <section class="pricing-showcase-section mt-5">
+          <div class="section-card-header text-center mx-auto" style="max-width: 650px;">
+            <div class="badge badge-project mb-2">Transparent Indian Rupee (₹ INR) Pricing</div>
+            <h2 class="section-title text-2xl">Predictable Plans for Indian Innovators</h2>
+            <p class="section-subtitle">No foreign exchange surcharges. Honest quotas with full self-hosting freedom.</p>
+          </div>
+
+          <div class="pricing-cards-grid mt-4">
+            <!-- Community -->
+            <div class="pricing-card glass-panel">
+              <div class="plan-header">
+                <span class="badge badge-success">${SUBSCRIPTION_PLANS.community.badge}</span>
+                <h3 class="plan-name">${SUBSCRIPTION_PLANS.community.name}</h3>
+                <div class="plan-price">
+                  <span class="price-val font-mono">${SUBSCRIPTION_PLANS.community.price}</span>
+                  <span class="price-period">${SUBSCRIPTION_PLANS.community.interval}</span>
+                </div>
+                <p class="plan-desc">${SUBSCRIPTION_PLANS.community.description}</p>
+              </div>
+              <div class="plan-features-list">
+                <ul>
+                  ${SUBSCRIPTION_PLANS.community.features.map(f => `<li>${icons.check(14)} ${f}</li>`).join('')}
+                </ul>
+              </div>
+              <div class="plan-cta-box">
+                <a href="#dashboard" class="btn btn-outline btn-block">Included Default</a>
+              </div>
+            </div>
+
+            <!-- Pro -->
+            <div class="pricing-card pro-card glass-panel" style="border-color: rgba(56, 189, 248, 0.4); box-shadow: 0 0 25px rgba(56, 189, 248, 0.15);">
+              <div class="plan-header">
+                <span class="badge badge-project">${SUBSCRIPTION_PLANS.pro.badge}</span>
+                <h3 class="plan-name">${SUBSCRIPTION_PLANS.pro.name}</h3>
+                <div class="plan-price">
+                  <span class="price-val font-mono">${SUBSCRIPTION_PLANS.pro.price}</span>
+                  <span class="price-period">${SUBSCRIPTION_PLANS.pro.interval}</span>
+                </div>
+                <p class="plan-desc">${SUBSCRIPTION_PLANS.pro.description}</p>
+              </div>
+              <div class="plan-features-list">
+                <ul>
+                  ${SUBSCRIPTION_PLANS.pro.features.slice(0, 5).map(f => `<li>${icons.check(14)} ${f}</li>`).join('')}
+                </ul>
+              </div>
+              <div class="plan-cta-box">
+                <a href="#plans" class="btn btn-primary btn-block">Upgrade to Pro (${SUBSCRIPTION_PLANS.pro.price})</a>
+              </div>
+            </div>
+
+            <!-- Team -->
+            <div class="pricing-card glass-panel">
+              <div class="plan-header">
+                <span class="badge badge-subtle">${SUBSCRIPTION_PLANS.team.badge}</span>
+                <h3 class="plan-name">${SUBSCRIPTION_PLANS.team.name}</h3>
+                <div class="plan-price">
+                  <span class="price-val font-mono">${SUBSCRIPTION_PLANS.team.price}</span>
+                  <span class="price-period">${SUBSCRIPTION_PLANS.team.interval}</span>
+                </div>
+                <p class="plan-desc">${SUBSCRIPTION_PLANS.team.description}</p>
+              </div>
+              <div class="plan-features-list">
+                <ul>
+                  ${SUBSCRIPTION_PLANS.team.features.slice(0, 5).map(f => `<li>${icons.check(14)} ${f}</li>`).join('')}
+                </ul>
+              </div>
+              <div class="plan-cta-box">
+                <a href="#plans" class="btn btn-outline btn-block">View Team Quotas</a>
+              </div>
             </div>
           </div>
         </section>
 
         <!-- Company Showcase Banner -->
-        <section class="company-showcase-section mt-5">
+        <section class="company-showcase-section mt-5 mb-5">
           <div class="company-banner-card glass-panel text-center">
-            <img src="/assets/altrivelle-logo.png" alt="ALTRIVELLE TECHNOLOGIES" class="company-banner-logo" onerror="this.style.display='none'" />
+            <img src="/assets/altrivelle-linker-logo.png" alt="ALTRIVELLE TECHNOLOGIES" class="company-banner-logo" onerror="this.style.display='none'" />
             <h2 class="company-banner-name">ALTRIVELLE TECHNOLOGIES</h2>
             <p class="company-banner-tagline">Think Beyond. Build Forward.</p>
             <p class="company-banner-manifesto mt-3">
-              We design software platforms that prioritize data sovereignty, user autonomy, high security, and developer elegance. Altrivelle Linker is available as an enterprise cloud service and a self-hostable open-source engine.
+              We design software platforms that prioritize data sovereignty, cryptographic integrity, user autonomy, and industrial developer elegance. Altrivelle Linker is built for creators, teams, and enterprises across India and worldwide.
             </p>
-            <div class="mt-4">
-              <a href="#plans" class="btn btn-outline">Explore Plans & Entitlements</a>
+            <div class="mt-4 flex-center gap-3">
+              <a href="#dashboard" class="btn btn-primary btn-lg">
+                Enter App Dashboard
+              </a>
+              <a href="#plans" class="btn btn-outline btn-lg">
+                Explore All Plans (₹ INR)
+              </a>
             </div>
           </div>
         </section>
