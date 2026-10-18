@@ -169,6 +169,8 @@ class AppRouter {
     const nameEl = document.getElementById('sidebar-user-name');
     const emailEl = document.getElementById('sidebar-user-email');
     const avatarEl = document.getElementById('sidebar-user-avatar');
+    const topbarAvatarEl = document.getElementById('topbar-user-avatar');
+    const mobileAvatarEl = document.getElementById('mobile-user-avatar');
     const adminNavLink = document.getElementById('nav-link-admin');
 
     const isAdmin = await adminService.isCurrentUserAdmin();
@@ -183,16 +185,21 @@ class AppRouter {
     if (this.currentUser) {
       const email = this.currentUser.email || 'user@altrivelle.app';
       const name = this.currentUser.user_metadata?.full_name || email.split('@')[0];
+      const initial = name.charAt(0).toUpperCase();
 
       if (nameEl) {
         nameEl.innerHTML = `${escapeHtml(name)} ${isAdmin ? '<span class="badge badge-admin-inline">ADMIN</span>' : ''}`;
       }
       if (emailEl) emailEl.textContent = email;
-      if (avatarEl) avatarEl.textContent = name.charAt(0).toUpperCase();
+      if (avatarEl) avatarEl.textContent = initial;
+      if (topbarAvatarEl) topbarAvatarEl.textContent = initial;
+      if (mobileAvatarEl) mobileAvatarEl.textContent = initial;
     } else {
       if (nameEl) nameEl.textContent = 'Active Session';
       if (emailEl) emailEl.textContent = 'ALTRIVELLE TECHNOLOGIES';
       if (avatarEl) avatarEl.textContent = 'A';
+      if (topbarAvatarEl) topbarAvatarEl.textContent = 'A';
+      if (mobileAvatarEl) mobileAvatarEl.textContent = 'A';
     }
   }
 
@@ -216,6 +223,174 @@ class AppRouter {
     } catch {
       // ignore
     }
+  }
+
+  async toggleProfileMenu() {
+    const dropdown = document.getElementById('profile-dropdown-menu');
+    if (!dropdown) return;
+
+    if (!dropdown.classList.contains('hidden')) {
+      dropdown.classList.add('hidden');
+      return;
+    }
+
+    // Build rich profile & account controller
+    const user = this.currentUser || await authService.getCurrentUser();
+    const profile = await authService.getProfile();
+    const isAdmin = await adminService.isCurrentUserAdmin();
+
+    const email = user?.email || 'user@altrivelle.app';
+    const name = profile?.full_name || user?.user_metadata?.full_name || email.split('@')[0];
+    const initial = name.charAt(0).toUpperCase();
+    const planTier = (profile?.plan_tier || 'community').toUpperCase();
+
+    let stats = null;
+    try { stats = await filesService.getStats(); } catch (_) {}
+    const used = stats?.totalBytes || profile?.storage_used || 0;
+    const quota = stats?.quotaBytes || profile?.storage_quota || APP_CONFIG.defaultQuotaBytes;
+    const percent = Math.min(100, Math.round((used / quota) * 100));
+
+    dropdown.innerHTML = `
+      <div class="profile-dropdown-header">
+        <div class="profile-dropdown-avatar">${initial}</div>
+        <div class="profile-dropdown-info">
+          <div class="profile-dropdown-name">${escapeHtml(name)}</div>
+          <div class="profile-dropdown-email">${escapeHtml(email)}</div>
+          <div class="profile-dropdown-badges mt-1 flex-center gap-1">
+            <span class="badge badge-success text-xs">${planTier} PLAN</span>
+            ${isAdmin ? '<span class="badge badge-admin-inline">ADMIN</span>' : ''}
+          </div>
+        </div>
+      </div>
+
+      <div class="profile-dropdown-storage">
+        <div class="flex-between text-xs text-muted mb-1">
+          <span>Storage Allocation</span>
+          <span>${formatBytes(used)} / ${formatBytes(quota)}</span>
+        </div>
+        <div class="progress-bar-track">
+          <div class="progress-bar-fill ${percent > 85 ? 'bg-danger' : percent > 65 ? 'bg-warning' : 'bg-primary'}" style="width: ${percent}%;"></div>
+        </div>
+      </div>
+
+      <div class="dropdown-divider"></div>
+
+      <div class="profile-dropdown-links">
+        <button type="button" class="profile-dropdown-item" id="menu-btn-profile">
+          ${icons.user(16)} <span>Account & Security Settings</span>
+        </button>
+        <button type="button" class="profile-dropdown-item" id="menu-btn-edit-name">
+          ${icons.edit(16)} <span>Edit Display Name</span>
+        </button>
+        <button type="button" class="profile-dropdown-item" id="menu-btn-plans">
+          ${icons.shield(16)} <span>Subscription Plans (₹ INR)</span>
+        </button>
+        ${isAdmin ? `
+          <button type="button" class="profile-dropdown-item text-primary" id="menu-btn-admin">
+            ${icons.shieldAlert(16)} <span>Admin Console</span>
+          </button>
+        ` : ''}
+        <button type="button" class="profile-dropdown-item" id="menu-btn-switch">
+          ${icons.users(16)} <span>Switch / Sign In Account</span>
+        </button>
+      </div>
+
+      <div class="dropdown-divider"></div>
+
+      <div class="profile-dropdown-footer">
+        <button type="button" class="btn btn-outline btn-block btn-sm text-danger" id="menu-btn-logout">
+          ${icons.logOut(14)} Sign Out
+        </button>
+      </div>
+    `;
+
+    dropdown.classList.remove('hidden');
+
+    // Event handlers for menu actions
+    const closeDropdown = () => dropdown.classList.add('hidden');
+
+    dropdown.querySelector('#menu-btn-profile')?.addEventListener('click', () => {
+      closeDropdown();
+      window.location.hash = '#settings';
+    });
+
+    dropdown.querySelector('#menu-btn-edit-name')?.addEventListener('click', () => {
+      closeDropdown();
+      this.showEditNameModal(name);
+    });
+
+    dropdown.querySelector('#menu-btn-plans')?.addEventListener('click', () => {
+      closeDropdown();
+      window.location.hash = '#plans';
+    });
+
+    dropdown.querySelector('#menu-btn-admin')?.addEventListener('click', () => {
+      closeDropdown();
+      window.location.hash = '#admin';
+    });
+
+    dropdown.querySelector('#menu-btn-switch')?.addEventListener('click', () => {
+      closeDropdown();
+      window.location.hash = '#auth';
+    });
+
+    dropdown.querySelector('#menu-btn-logout')?.addEventListener('click', async () => {
+      closeDropdown();
+      try {
+        await authService.signOut();
+        toast.info('Signed out successfully.');
+        this.currentUser = null;
+        this.navigate('auth');
+      } catch (err) {
+        toast.error(`Error signing out: ${err.message}`);
+      }
+    });
+  }
+
+  showEditNameModal(currentName = '') {
+    modal.open(`
+      <form id="quick-edit-name-form" class="mt-2">
+        <p class="text-sm text-muted mb-3">Update your display name visible across shares, team workspaces, and comments.</p>
+        <div class="form-group text-left">
+          <label for="input-edit-display-name">Full Display Name</label>
+          <input type="text" id="input-edit-display-name" class="form-input" value="${escapeHtml(currentName)}" required autofocus />
+        </div>
+        <div class="modal-footer-actions mt-4 flex-between">
+          <button type="button" class="btn btn-outline" id="btn-cancel-edit-name">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btn-save-edit-name">Save Changes</button>
+        </div>
+      </form>
+    `, { title: 'Account Profile: Edit Display Name' });
+
+    document.getElementById('btn-cancel-edit-name')?.addEventListener('click', () => modal.close());
+
+    document.getElementById('quick-edit-name-form')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const newName = (document.getElementById('input-edit-display-name')?.value || '').trim();
+      if (!newName) return;
+
+      const saveBtn = document.getElementById('btn-save-edit-name');
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+      }
+
+      try {
+        await authService.updateProfile({ full_name: newName });
+        toast.success(`Display name updated to "${newName}"`);
+        modal.close();
+        await this.updateUserSidebar();
+        if (this.currentRoute === 'settings') {
+          await settingsView.render(document.getElementById('main-content-area'));
+        }
+      } catch (err) {
+        toast.error(`Update failed: ${err.message}`);
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Save Changes';
+        }
+      }
+    });
   }
 
   bindGlobalEvents() {
@@ -257,6 +432,37 @@ class AppRouter {
           const newTheme = themeManager.toggle();
           toast.info(`Theme changed to ${newTheme} mode`);
         });
+      }
+    });
+
+    // Profile Account Controller button triggers (topbar and mobile)
+    const profileBtnTopbar = document.getElementById('btn-topbar-profile');
+    const profileBtnMobile = document.getElementById('btn-mobile-profile');
+
+    [profileBtnTopbar, profileBtnMobile].forEach((btn) => {
+      if (btn) {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.toggleProfileMenu();
+        });
+      }
+    });
+
+    // Outside click to close profile dropdown
+    document.addEventListener('click', (e) => {
+      const dropdown = document.getElementById('profile-dropdown-menu');
+      const wrapper = document.getElementById('topbar-profile-wrapper');
+      if (dropdown && !dropdown.classList.contains('hidden')) {
+        if (!wrapper?.contains(e.target)) {
+          dropdown.classList.add('hidden');
+        }
+      }
+    });
+
+    // Escape to close dropdown
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        document.getElementById('profile-dropdown-menu')?.classList.add('hidden');
       }
     });
 
