@@ -984,7 +984,18 @@ button {
   align-items: center;
   justify-content: center;
   color: var(--text-muted);
+  cursor: pointer;
+  position: relative;
+  z-index: 2;
   transition: all var(--transition-fast);
+}
+
+.action-icon-btn svg,
+.btn-icon svg,
+.btn svg,
+.file-card-actions svg,
+.table-actions svg {
+  pointer-events: none;
 }
 
 .action-icon-btn:hover {

@@ -188,7 +188,9 @@ export const previewManager = {
       if (shareBtn) {
         shareBtn.addEventListener('click', () => {
           modal.close();
-          openShareModal(file);
+          setTimeout(() => {
+            openShareModal(file);
+          }, 50);
         });
       }
     } catch (err) {

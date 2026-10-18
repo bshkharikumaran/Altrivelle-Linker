@@ -7,7 +7,7 @@ import { modal } from '../ui/modal.js';
 import { shareService } from '../services/share.service.js';
 import { riskAdvisor } from '../services/riskAdvisor.service.js';
 import { trustPassport } from '../ui/trustPassport.js';
-import { openShareModal } from '../ui/shareModal.js';
+import { openShareModal as showShareModalDialog } from '../ui/shareModal.js';
 import { APP_CONFIG } from '../config.js';
 
 function formatBytes(bytes, decimals = 1) {
@@ -312,7 +312,7 @@ export const dashboardView = {
                       <button type="button" class="action-icon-btn btn-preview-file" data-id="${file.id}" title="Preview">
                         ${icons.eye(16)}
                       </button>
-                      <button type="button" class="action-icon-btn btn-share-file" data-id="${file.id}" title="Share Link">
+                      <button type="button" class="action-icon-btn btn-share-file" data-id="${file.id}" onclick="window.__altrivelleShareFile && window.__altrivelleShareFile('${file.id}')" title="Share Link">
                         ${icons.share(16)}
                       </button>
                       <button type="button" class="action-icon-btn btn-download-file" data-id="${file.id}" title="Download">
@@ -436,34 +436,59 @@ export const dashboardView = {
   },
 
   bindTableEvents(tableContainer) {
-    // Trust Passport quick view
+    if (!tableContainer) return;
+
+    // Helper to resolve file reference reliably
+    const resolveFile = async (fileId) => {
+      let file = this.recentFiles.find((f) => String(f.id) === String(fileId));
+      if (!file) {
+        try {
+          const allFiles = await filesService.getFiles();
+          file = (allFiles || []).find((f) => String(f.id) === String(fileId));
+        } catch (err) {
+          console.warn('File lookup fallback failed:', err);
+        }
+      }
+      return file;
+    };
+
+    // 1. Direct event bindings on button elements
     tableContainer.querySelectorAll('.btn-passport-file').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const file = this.recentFiles.find((f) => f.id === btn.dataset.id);
+      btn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const file = await resolveFile(btn.dataset.id);
         if (file) this.openPassportModal(file);
       });
     });
 
-    // Preview
     tableContainer.querySelectorAll('.btn-preview-file').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const file = this.recentFiles.find((f) => f.id === btn.dataset.id);
+      btn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const file = await resolveFile(btn.dataset.id);
         if (file) previewManager.openPreview(file);
       });
     });
 
-    // Share
     tableContainer.querySelectorAll('.btn-share-file').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const file = this.recentFiles.find((f) => f.id === btn.dataset.id);
-        if (file) this.openShareModal(file);
+      btn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const file = await resolveFile(btn.dataset.id);
+        if (file) {
+          this.openShareModal(file);
+        } else {
+          toast.error('File not found for sharing.');
+        }
       });
     });
 
-    // Download
     tableContainer.querySelectorAll('.btn-download-file').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        const file = this.recentFiles.find((f) => f.id === btn.dataset.id);
+      btn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const file = await resolveFile(btn.dataset.id);
         if (file) {
           try {
             const url = await filesService.getSignedDownloadUrl(file.storage_path, file.name);
@@ -481,13 +506,48 @@ export const dashboardView = {
       });
     });
 
-    // Delete
     tableContainer.querySelectorAll('.btn-delete-file').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const file = this.recentFiles.find((f) => f.id === btn.dataset.id);
+      btn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const file = await resolveFile(btn.dataset.id);
         if (file) this.openDeleteConfirmModal(file);
       });
     });
+
+    // 2. Event delegation as a backup in case of SVG or inner target clicks
+    tableContainer.onclick = async (e) => {
+      const shareBtn = e.target.closest('.btn-share-file');
+      if (shareBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const file = await resolveFile(shareBtn.dataset.id);
+        if (file) {
+          this.openShareModal(file);
+        } else {
+          toast.error('File not found for sharing.');
+        }
+        return;
+      }
+
+      const passportBtn = e.target.closest('.btn-passport-file');
+      if (passportBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const file = await resolveFile(passportBtn.dataset.id);
+        if (file) this.openPassportModal(file);
+        return;
+      }
+
+      const previewBtn = e.target.closest('.btn-preview-file');
+      if (previewBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const file = await resolveFile(previewBtn.dataset.id);
+        if (file) previewManager.openPreview(file);
+        return;
+      }
+    };
   },
 
   openPassportModal(file) {
@@ -515,9 +575,13 @@ export const dashboardView = {
   },
 
   openShareModal(file) {
-    const tableContainer = document.getElementById('recent-files-table-container');
-    openShareModal(file, () => {
-      if (tableContainer) this.loadData(tableContainer);
+    if (!file) {
+      toast.error('Invalid file reference for sharing.');
+      return;
+    }
+    const mainContainer = document.getElementById('main-content-area');
+    showShareModalDialog(file, () => {
+      if (mainContainer) this.loadData(mainContainer);
     });
   },
 
@@ -560,3 +624,25 @@ export const dashboardView = {
     });
   },
 };
+
+// Global helper for opening the share modal from inline HTML or any dashboard element
+if (typeof window !== 'undefined') {
+  window.__altrivelleShareFile = async (fileId) => {
+    if (!fileId) return;
+    let file = dashboardView.recentFiles?.find((f) => String(f.id) === String(fileId));
+    if (!file) {
+      try {
+        const allFiles = await filesService.getFiles();
+        file = (allFiles || []).find((f) => String(f.id) === String(fileId));
+      } catch (err) {
+        console.warn('Global share file lookup fallback failed:', err);
+      }
+    }
+    if (file) {
+      dashboardView.openShareModal(file);
+    } else {
+      toast.error('File details not found for sharing.');
+    }
+  };
+}
+

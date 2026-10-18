@@ -239,7 +239,7 @@ export const filesView = {
                 <button type="button" class="btn-icon btn-preview-file" data-id="${file.id}" title="Preview">
                   ${icons.eye(16)}
                 </button>
-                <button type="button" class="btn-icon btn-share-file" data-id="${file.id}" title="Share">
+                <button type="button" class="btn-icon btn-share-file" data-id="${file.id}" onclick="window.__altrivelleShareFile && window.__altrivelleShareFile('${file.id}')" title="Share">
                   ${icons.share(16)}
                 </button>
                 <button type="button" class="btn-icon btn-download-file" data-id="${file.id}" title="Download">
@@ -310,7 +310,7 @@ export const filesView = {
                         <button type="button" class="action-icon-btn btn-preview-file" data-id="${file.id}" title="Preview">
                           ${icons.eye(16)}
                         </button>
-                        <button type="button" class="action-icon-btn btn-share-file" data-id="${file.id}" title="Share Link">
+                        <button type="button" class="action-icon-btn btn-share-file" data-id="${file.id}" onclick="window.__altrivelleShareFile && window.__altrivelleShareFile('${file.id}')" title="Share Link">
                           ${icons.share(16)}
                         </button>
                         <button type="button" class="action-icon-btn btn-download-file" data-id="${file.id}" title="Download">
@@ -463,11 +463,11 @@ export const filesView = {
     area.querySelectorAll('.btn-share-file').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        const file = this.files.find((f) => f.id === btn.dataset.id);
+        const file = this.files.find((f) => String(f.id) === String(btn.dataset.id));
         if (file) {
           openShareModal(file, () => this.loadData(container));
         } else {
-          toast.error('File not found');
+          toast.error('File not found for sharing.');
         }
       });
     });
