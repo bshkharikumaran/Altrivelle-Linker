@@ -1532,6 +1532,128 @@ button {
   color: var(--text-muted);
 }
 
+/* Unified Share Modal */
+.share-modal-file-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background-color: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.banner-file-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.banner-file-name {
+  font-size: 0.925rem;
+  font-weight: 600;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 2px;
+}
+
+.banner-file-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.share-controls-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .share-controls-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.share-result-expanded {
+  background-color: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 14px;
+}
+
+.result-group label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.existing-links-section {
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 14px;
+}
+
+.existing-links-title {
+  font-size: 0.825rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 10px;
+}
+
+.existing-links-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.link-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.link-item-row:hover {
+  border-color: var(--border-focus);
+}
+
+.link-item-row.link-inactive {
+  opacity: 0.6;
+  background-color: var(--bg-subtle);
+}
+
+.link-item-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.link-token {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.link-status {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.link-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .color-palette-picker {
   display: flex;
   gap: 10px;

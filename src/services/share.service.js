@@ -44,13 +44,14 @@ export const shareService = {
   async createShareLink(fileId, options = {}) {
     const supabase = getSupabase();
     const user = await authService.getCurrentUser();
-    if (!user) throw new Error('Not authenticated');
+    if (!user) throw new Error('Not authenticated. Please sign in to create share links.');
 
     const {
       duration = '7d',
       customDate = null,
       password = null,
       maxDownloads = null,
+      file = null,
     } = options;
 
     const token = generateSecureToken(14);
@@ -67,7 +68,7 @@ export const shareService = {
         max_downloads: maxDownloads ? parseInt(maxDownloads, 10) : null,
         password_hash: password && password.trim() ? password.trim() : null,
       })
-      .select('*, files(id, name, mime_type, size_bytes)')
+      .select('*')
       .single();
 
     if (error) {
@@ -75,35 +76,43 @@ export const shareService = {
       throw error;
     }
 
+    const fileMeta = file || data?.files || { name: 'file', mime_type: '' };
+
     return {
       ...data,
+      files: fileMeta,
       shareUrl: this.buildShareUrl(token),
       directFileUrl: this.buildDirectFileUrl(token),
-      htmlSnippet: this.buildHtmlSnippet(data.files || { name: 'file' }, token),
+      htmlSnippet: this.buildHtmlSnippet(fileMeta, token),
     };
   },
 
-  async getFileShareLinks(fileId) {
+  async getFileShareLinks(fileId, file = null) {
     const supabase = getSupabase();
     const user = await authService.getCurrentUser();
     if (!user) return [];
 
-    const { data, error } = await supabase
-      .from('share_links')
-      .select('*, files(*)')
-      .eq('file_id', fileId)
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from('share_links')
+        .select('*')
+        .eq('file_id', fileId)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
 
-    if (error) throw error;
+      if (error) throw error;
 
-    return (data || []).map((link) => ({
-      ...link,
-      shareUrl: this.buildShareUrl(link.token),
-      directFileUrl: this.buildDirectFileUrl(link.token),
-      htmlSnippet: this.buildHtmlSnippet(link.files || { name: 'file' }, link.token),
-      isExpired: link.expires_at ? new Date(link.expires_at) <= new Date() : false,
-    }));
+      return (data || []).map((link) => ({
+        ...link,
+        shareUrl: this.buildShareUrl(link.token),
+        directFileUrl: this.buildDirectFileUrl(link.token),
+        htmlSnippet: this.buildHtmlSnippet(file || link.files || { name: 'file' }, link.token),
+        isExpired: link.expires_at ? new Date(link.expires_at) <= new Date() : false,
+      }));
+    } catch (err) {
+      console.warn('Could not load share links for file:', err);
+      return [];
+    }
   },
 
   async revokeShareLink(linkId) {

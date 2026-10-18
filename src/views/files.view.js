@@ -5,6 +5,7 @@ import { icons } from '../ui/icons.js';
 import { previewManager } from '../ui/preview.js';
 import { modal } from '../ui/modal.js';
 import { shareService } from '../services/share.service.js';
+import { openShareModal } from '../ui/shareModal.js';
 
 function formatBytes(bytes, decimals = 1) {
   if (!+bytes) return '0 Bytes';
@@ -463,7 +464,24 @@ export const filesView = {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const file = this.files.find((f) => f.id === btn.dataset.id);
-        if (file) this.openShareManagerModal(file, container);
+        if (file) {
+          openShareModal(file, () => this.loadData(container));
+        } else {
+          toast.error('File not found');
+        }
+      });
+    });
+
+    // Also clicking the "Shared" badge on a file card opens the share manager
+    area.querySelectorAll('.file-card-badge').forEach((badge) => {
+      badge.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const card = badge.closest('.file-card');
+        const fileId = card?.dataset.id;
+        const file = this.files.find((f) => f.id === fileId);
+        if (file) {
+          openShareModal(file, () => this.loadData(container));
+        }
       });
     });
 
@@ -508,246 +526,8 @@ export const filesView = {
     });
   },
 
-  async openShareManagerModal(file, container) {
-    // Load existing links
-    let links = [];
-    try {
-      links = await shareService.getFileShareLinks(file.id);
-    } catch (err) {
-      console.warn('Could not load links:', err);
-    }
-
-    modal.open(`
-      <div class="share-manager-modal">
-        <p class="share-modal-subtitle">Share <strong>${escapeHtml(file.name)}</strong> with collaborators</p>
-
-        <!-- Create New Link Form -->
-        <div class="share-create-box">
-          <h4>Create New Share Link</h4>
-          <div class="form-row-2">
-            <div class="form-group">
-              <label for="share-duration">Expiration</label>
-              <select id="share-duration" class="form-select-sm">
-                <option value="1h">1 Hour</option>
-                <option value="1d">1 Day</option>
-                <option value="7d" selected>7 Days</option>
-                <option value="30d">30 Days</option>
-                <option value="never">No Expiration</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="share-limit">Download Limit</label>
-              <input type="number" id="share-limit" class="form-input-sm" placeholder="Unlimited" min="1" />
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="share-pw">Optional Password</label>
-            <input type="text" id="share-pw" class="form-input-sm" placeholder="Leave empty for public access" />
-          </div>
-
-          <button type="button" class="btn btn-primary btn-sm" id="btn-submit-create-link">
-            ${icons.sparkles(14)} Generate Link
-          </button>
-
-          <!-- Generated Link Output Container -->
-          <div id="new-link-output" class="share-result-expanded hidden mt-3">
-            <div class="result-group">
-              <label class="font-medium text-xs text-muted mb-1 block">Web Share Page (Interactive)</label>
-              <div class="input-with-button">
-                <input type="text" id="new-share-url" readonly class="form-input form-input-sm font-mono" />
-                <button type="button" class="btn btn-secondary btn-sm" id="btn-copy-new-share">${icons.copy(14)} Share Link</button>
-              </div>
-            </div>
-            <div class="result-group mt-2">
-              <label class="font-medium text-xs text-muted mb-1 block flex-between">
-                <span>Direct File Link (For HTML Files / Raw URL)</span>
-                <span class="badge badge-primary text-2xs">Raw Asset</span>
-              </label>
-              <div class="input-with-button">
-                <input type="text" id="new-direct-url" readonly class="form-input form-input-sm font-mono" />
-                <button type="button" class="btn btn-secondary btn-sm" id="btn-copy-new-direct">${icons.link(14)} Direct Link</button>
-              </div>
-              <p class="form-hint text-xs">Direct 302 URL to stream into HTML <code>&lt;img&gt;</code>, <code>&lt;video&gt;</code>, or <code>&lt;a&gt;</code> tags.</p>
-            </div>
-            <div class="result-group mt-2">
-              <label class="font-medium text-xs text-muted mb-1 block">Ready-to-Use HTML Snippet</label>
-              <div class="input-with-button">
-                <input type="text" id="new-html-snippet" readonly class="form-input form-input-sm font-mono" />
-                <button type="button" class="btn btn-secondary btn-sm" id="btn-copy-new-html">${icons.copy(14)} Copy HTML</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Existing Active Links -->
-        <div class="existing-links-section">
-          <h4>Active & Past Links (${links.length})</h4>
-          <div class="existing-links-list" id="existing-links-list">
-            ${
-              links.length === 0
-                ? `<p class="empty-subtext">No share links have been generated yet for this file.</p>`
-                : links
-                    .map(
-                      (l) => `
-                    <div class="link-item-row ${l.is_revoked || l.isExpired ? 'link-inactive' : ''}">
-                      <div class="link-item-meta">
-                        <span class="link-token font-mono">${escapeHtml(l.token)}</span>
-                        <span class="link-status">
-                          ${
-                            l.is_revoked
-                              ? '<span class="text-danger">Revoked</span>'
-                              : l.isExpired
-                              ? '<span class="text-warning">Expired</span>'
-                              : '<span class="text-success">Active</span>'
-                          }
-                          &bull; ${l.download_count} downloads
-                        </span>
-                      </div>
-                      <div class="link-item-actions">
-                        ${
-                          !l.is_revoked && !l.isExpired
-                            ? `
-                            <button type="button" class="btn-icon btn-copy-link" data-url="${l.shareUrl}" title="Copy Web Share Link">
-                              ${icons.copy(16)}
-                            </button>
-                            <button type="button" class="btn-icon btn-copy-direct-link" data-url="${l.directFileUrl}" title="Copy Direct File Link (For HTML / Raw URL)">
-                              ${icons.link(16)}
-                            </button>
-                            <button type="button" class="btn-icon btn-copy-html-tag" data-snippet="${escapeHtml(l.htmlSnippet)}" title="Copy HTML Snippet Tag">
-                              ${icons.sparkles(16)}
-                            </button>
-                            <button type="button" class="btn-icon text-danger btn-revoke-link" data-id="${l.id}" title="Revoke Link">
-                              ${icons.close(16)}
-                            </button>
-                          `
-                            : `
-                            <button type="button" class="btn-icon text-muted btn-delete-link" data-id="${l.id}" title="Delete Record">
-                              ${icons.trash(16)}
-                            </button>
-                          `
-                        }
-                      </div>
-                    </div>
-                  `
-                    )
-                    .join('')
-            }
-          </div>
-        </div>
-
-        <div class="modal-credit-footer">
-          FileLink &bull; Developed by ALTRIVELLE TECHNOLOGIES
-        </div>
-      </div>
-    `, {
-      title: 'Manage Share Links',
-      maxWidth: 'max-w-lg',
-    });
-
-    // Copy links
-    document.querySelectorAll('.btn-copy-link').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        navigator.clipboard.writeText(btn.dataset.url);
-        toast.success('Share page link copied to clipboard!');
-      });
-    });
-
-    // Copy direct file links
-    document.querySelectorAll('.btn-copy-direct-link').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        navigator.clipboard.writeText(btn.dataset.url);
-        toast.success('Direct file link copied (use in HTML)!');
-      });
-    });
-
-    // Copy HTML snippets
-    document.querySelectorAll('.btn-copy-html-tag').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        navigator.clipboard.writeText(btn.dataset.snippet);
-        toast.success('HTML embed snippet copied to clipboard!');
-      });
-    });
-
-    // Revoke link
-    document.querySelectorAll('.btn-revoke-link').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        try {
-          await shareService.revokeShareLink(btn.dataset.id);
-          toast.success('Share link revoked.');
-          modal.close();
-          await this.loadData(container);
-        } catch (err) {
-          toast.error(`Failed to revoke link: ${err.message}`);
-        }
-      });
-    });
-
-    // Delete link record
-    document.querySelectorAll('.btn-delete-link').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        try {
-          await shareService.deleteShareLink(btn.dataset.id);
-          toast.success('Link record deleted.');
-          modal.close();
-          await this.loadData(container);
-        } catch (err) {
-          toast.error(`Failed to delete record: ${err.message}`);
-        }
-      });
-    });
-
-    // Create link
-    document.getElementById('btn-submit-create-link')?.addEventListener('click', async () => {
-      const duration = document.getElementById('share-duration').value;
-      const maxDownloads = document.getElementById('share-limit').value;
-      const password = document.getElementById('share-pw').value;
-      const submitBtn = document.getElementById('btn-submit-create-link');
-
-      submitBtn.disabled = true;
-      submitBtn.textContent = 'Generating...';
-
-      try {
-        const link = await shareService.createShareLink(file.id, {
-          duration,
-          maxDownloads,
-          password,
-        });
-
-        const outputContainer = document.getElementById('new-link-output');
-        const shareInput = document.getElementById('new-share-url');
-        const directInput = document.getElementById('new-direct-url');
-        const htmlInput = document.getElementById('new-html-snippet');
-
-        shareInput.value = link.shareUrl;
-        directInput.value = link.directFileUrl;
-        htmlInput.value = link.htmlSnippet;
-
-        outputContainer.classList.remove('hidden');
-
-        document.getElementById('btn-copy-new-share').onclick = () => {
-          navigator.clipboard.writeText(link.shareUrl);
-          toast.success('Share page link copied!');
-        };
-        document.getElementById('btn-copy-new-direct').onclick = () => {
-          navigator.clipboard.writeText(link.directFileUrl);
-          toast.success('Direct file link copied (use in HTML)!');
-        };
-        document.getElementById('btn-copy-new-html').onclick = () => {
-          navigator.clipboard.writeText(link.htmlSnippet);
-          toast.success('HTML snippet copied!');
-        };
-
-        navigator.clipboard.writeText(link.directFileUrl);
-        toast.success('Link created & direct file link copied to clipboard!');
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = `${icons.sparkles(14)} Generate Another Link`;
-        await this.loadData(container);
-      } catch (err) {
-        toast.error(`Could not create link: ${err.message}`);
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = `${icons.sparkles(14)} Generate Link`;
-      }
-    });
+  openShareManagerModal(file, container) {
+    openShareModal(file, () => this.loadData(container));
   },
 
   openRenameModal(file, container) {

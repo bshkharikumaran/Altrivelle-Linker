@@ -2,6 +2,7 @@ import { modal } from './modal.js';
 import { icons } from './icons.js';
 import { filesService } from '../services/files.service.js';
 import { toast } from './toast.js';
+import { openShareModal } from './shareModal.js';
 
 function formatBytes(bytes, decimals = 2) {
   if (!+bytes) return '0 Bytes';
@@ -158,14 +159,17 @@ export const previewManager = {
               <span class="preview-size">${formatBytes(file.size_bytes)}</span>
             </div>
             <div class="preview-actions">
+              <button type="button" class="btn btn-primary btn-sm" id="btn-share-from-preview">
+                ${icons.share(16)} Share File
+              </button>
               ${
                 downloadUrl
-                  ? `<a href="${downloadUrl}" download="${escapeHtml(file.name)}" class="btn btn-primary btn-sm">
+                  ? `<a href="${downloadUrl}" download="${escapeHtml(file.name)}" class="btn btn-secondary btn-sm">
                       ${icons.download(16)} Download File
                     </a>`
                   : ''
               }
-              <button type="button" class="btn btn-secondary btn-sm" id="btn-close-preview">Close</button>
+              <button type="button" class="btn btn-outline btn-sm" id="btn-close-preview">Close</button>
             </div>
           </div>
           <div class="preview-attribution">
@@ -179,6 +183,14 @@ export const previewManager = {
 
       const closeBtn = document.getElementById('btn-close-preview');
       if (closeBtn) closeBtn.addEventListener('click', () => modal.close());
+
+      const shareBtn = document.getElementById('btn-share-from-preview');
+      if (shareBtn) {
+        shareBtn.addEventListener('click', () => {
+          modal.close();
+          openShareModal(file);
+        });
+      }
     } catch (err) {
       console.error('Preview error:', err);
       toast.error(`Could not preview file: ${err.message}`);
