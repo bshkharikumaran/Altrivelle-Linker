@@ -407,6 +407,16 @@ class AppRouter {
     if (toggleBtn) toggleBtn.addEventListener('click', toggleSidebar);
     if (backdrop) backdrop.addEventListener('click', toggleSidebar);
 
+    // Auto-close sidebar on mobile after clicking any link
+    sidebar?.querySelectorAll('.sidebar-nav-item, .brand-logo-link').forEach((link) => {
+      link.addEventListener('click', () => {
+        if (sidebar?.classList.contains('mobile-open')) {
+          sidebar.classList.remove('mobile-open');
+          backdrop?.classList.add('hidden');
+        }
+      });
+    });
+
     // Logout
     const logoutBtn = document.getElementById('btn-logout');
     if (logoutBtn) {
@@ -451,9 +461,10 @@ class AppRouter {
     // Outside click to close profile dropdown
     document.addEventListener('click', (e) => {
       const dropdown = document.getElementById('profile-dropdown-menu');
-      const wrapper = document.getElementById('topbar-profile-wrapper');
+      const topbarTrigger = document.getElementById('btn-topbar-profile');
+      const mobileTrigger = document.getElementById('btn-mobile-profile');
       if (dropdown && !dropdown.classList.contains('hidden')) {
-        if (!wrapper?.contains(e.target)) {
+        if (!dropdown.contains(e.target) && !topbarTrigger?.contains(e.target) && !mobileTrigger?.contains(e.target)) {
           dropdown.classList.add('hidden');
         }
       }

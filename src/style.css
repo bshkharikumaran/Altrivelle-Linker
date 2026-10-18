@@ -2148,34 +2148,484 @@ button {
 .tracking-widest { letter-spacing: 0.15em; }
 
 
-/* Responsive Media Queries */
-@media (max-width: 900px) {
-  .app-sidebar {
-    position: fixed;
-    transform: translateX(-100%);
-  }
+/* ==============================================================================
+   Altrivelle Linker — Comprehensive Responsive Mobile Optimization
+   Developed by ALTRIVELLE TECHNOLOGIES
+   ============================================================================== */
 
-  .app-sidebar.mobile-open {
-    transform: translateX(0);
+@media (max-width: 900px) {
+  .app-layout {
+    flex-direction: column;
+    min-height: 100vh;
+    width: 100%;
   }
 
   .mobile-header {
     display: flex;
+    width: 100%;
+    height: 56px;
+    padding: 0 16px;
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    background-color: var(--bg-surface);
+    border-bottom: 1px solid var(--border-subtle);
   }
 
   .app-topbar {
     display: none;
   }
 
-  .settings-grid {
-    grid-template-columns: 1fr;
+  .app-sidebar {
+    width: 270px;
+    max-width: 85vw;
+    height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 50;
+    transform: translateX(-100%);
+    transition: transform var(--transition-normal);
+  }
+
+  .app-sidebar.mobile-open {
+    transform: translateX(0);
+    box-shadow: 10px 0 35px rgba(0, 0, 0, 0.6);
   }
 
   .sidebar-backdrop {
     position: fixed;
     inset: 0;
-    background-color: rgba(0, 0, 0, 0.5);
-    z-index: 25;
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 45;
+  }
+
+  .app-content-container {
+    padding: 20px 16px;
+    width: 100%;
+  }
+
+  .profile-dropdown-card {
+    position: fixed;
+    top: 60px;
+    right: 12px;
+    left: 12px;
+    width: auto;
+    max-width: 360px;
+    margin-left: auto;
+    z-index: 9999;
+  }
+
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .automation-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+@media (max-width: 640px) {
+  .app-content-container {
+    padding: 16px 12px;
+  }
+
+  /* Landing Hero */
+  .landing-hero {
+    padding: 32px 12px 20px;
+  }
+
+  .hero-badge {
+    font-size: 0.725rem;
+    padding: 5px 12px;
+    margin-bottom: 16px;
+    text-align: center;
+    max-width: 100%;
+    white-space: normal;
+  }
+
+  .hero-headline {
+    font-size: 2.1rem;
+    line-height: 1.18;
+    letter-spacing: -0.02em;
+    margin-bottom: 14px;
+  }
+
+  .hero-subtext {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin-bottom: 22px;
+  }
+
+  .hero-cta-group {
+    flex-direction: column;
+    width: 100%;
+    gap: 10px;
+  }
+
+  .hero-cta-group .btn {
+    width: 100%;
+    justify-content: center;
+    padding: 12px 18px;
+    font-size: 0.925rem;
+  }
+
+  .hero-feature-pills {
+    gap: 6px;
+  }
+
+  .pill-item {
+    font-size: 0.725rem;
+    padding: 4px 8px;
+  }
+
+  /* Landing Section Headers */
+  .landing-section-header {
+    margin-bottom: 24px;
+    gap: 8px;
+    padding: 0 4px;
+  }
+
+  .landing-section-badge {
+    font-size: 0.7rem;
+    padding: 4px 12px;
+  }
+
+  .landing-section-title {
+    font-size: 1.6rem;
+    line-height: 1.25;
+  }
+
+  .landing-section-subtitle {
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+
+  /* Grids Stacked */
+  .transfer-modes-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .transfer-mode-card {
+    padding: 22px 16px;
+  }
+
+  .pillars-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .pillar-card {
+    padding: 22px 16px;
+  }
+
+  .pricing-cards-grid {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .pricing-card {
+    padding: 26px 18px;
+  }
+
+  .plan-header {
+    min-height: auto;
+    margin-bottom: 12px;
+  }
+
+  .plan-name {
+    font-size: 1.25rem;
+  }
+
+  .price-val {
+    font-size: 2rem;
+  }
+
+  /* Company Banner */
+  .company-banner-card {
+    padding: 28px 16px;
+    border-radius: var(--radius-xl);
+  }
+
+  .company-banner-logo-wrap {
+    width: 64px;
+    height: 64px;
+    padding: 8px;
+    margin-bottom: 12px;
+  }
+
+  .company-banner-name {
+    font-size: 1.35rem;
+  }
+
+  .company-banner-tagline {
+    font-size: 0.775rem;
+  }
+
+  .company-banner-manifesto {
+    font-size: 0.875rem;
+    line-height: 1.55;
+    margin-top: 10px;
+  }
+
+  .company-banner-actions {
+    flex-direction: column;
+    width: 100%;
+    gap: 10px;
+  }
+
+  .company-banner-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* View Header */
+  .view-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+
+  .view-title {
+    font-size: 1.45rem;
+  }
+
+  .view-subtitle {
+    font-size: 0.825rem;
+  }
+
+  .header-actions {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .header-actions .btn {
+    flex: 1;
+    min-width: 120px;
+    justify-content: center;
+  }
+
+  /* Stats Grid */
+  .stats-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .stat-card {
+    padding: 14px 12px;
+  }
+
+  .stat-value {
+    font-size: 1.35rem;
+  }
+
+  .stat-label {
+    font-size: 0.725rem;
+  }
+
+  /* P2P Role Switcher */
+  .p2p-role-switcher {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .p2p-tab-btn {
+    padding: 10px;
+    font-size: 0.825rem;
+  }
+
+  .p2p-code-display-box {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+    text-align: center;
+  }
+
+  .p2p-code-chip {
+    font-size: 1.6rem;
+    letter-spacing: 0.15em;
+  }
+
+  .p2p-actions-row {
+    flex-direction: column;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .p2p-actions-row .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .input-with-button {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .input-with-button .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Files Toolbar & Filters */
+  .files-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+
+  .toolbar-left, .toolbar-right {
+    width: 100%;
+    gap: 8px;
+  }
+
+  .search-input-wrapper {
+    min-width: 100%;
+    width: 100%;
+  }
+
+  .filter-pills {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+    scrollbar-width: none;
+    padding: 4px;
+  }
+
+  .filter-pills::-webkit-scrollbar {
+    display: none;
+  }
+
+  .toolbar-right {
+    justify-content: space-between;
+  }
+
+  .form-select-sm {
+    flex: 1;
+    min-width: 100px;
+  }
+
+  /* File Grid */
+  .files-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  /* Modals */
+  .modal-root {
+    padding: 12px;
+    align-items: flex-end;
+  }
+
+  .modal-wrapper {
+    max-height: 90vh;
+    border-radius: var(--radius-xl) var(--radius-xl) var(--radius-md) var(--radius-md);
+  }
+
+  .modal-header {
+    padding: 16px;
+  }
+
+  .modal-body {
+    padding: 16px;
+    max-height: calc(90vh - 120px);
+  }
+
+  .modal-footer-actions {
+    flex-direction: column-reverse;
+    gap: 8px;
+    margin-top: 18px;
+  }
+
+  .modal-footer-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Public Share Page */
+  .share-main-content {
+    padding: 20px 12px;
+  }
+
+  .share-file-card {
+    padding: 20px 14px;
+    border-radius: var(--radius-lg);
+  }
+
+  .share-file-header {
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .share-file-icon {
+    width: 48px;
+    height: 48px;
+  }
+
+  .share-file-name {
+    font-size: 1.15rem;
+  }
+
+  .share-file-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .trust-passport-card {
+    padding: 16px 14px;
+  }
+
+  .passport-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .passport-verified-pill {
+    margin-left: 0;
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Footer */
+  .app-footer {
+    padding: 18px 16px;
+  }
+
+  .footer-container {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 14px;
+  }
+
+  .footer-brand-info {
+    flex-direction: column;
+    text-align: center;
+    gap: 8px;
+  }
+
+  .footer-links {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+  }
+}
+
+@media (max-width: 380px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-headline {
+    font-size: 1.8rem;
   }
 }
 
@@ -3436,10 +3886,11 @@ button {
 }
 
 .profile-dropdown-card {
-  position: absolute;
-  top: calc(100% + 10px);
-  right: 0;
+  position: fixed;
+  top: 58px;
+  right: 28px;
   width: 310px;
+  max-width: calc(100vw - 32px);
   background-color: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
