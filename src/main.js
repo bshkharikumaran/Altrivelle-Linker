@@ -704,7 +704,7 @@ class AppRouter {
             <ul class="highlights-list">
               <li><strong>Adaptive Transfer:</strong> Persistent Cloud, Ephemeral Self-Destruct, and Direct WebRTC Device-to-Device transfer.</li>
               <li><strong>Trust Passport &trade;:</strong> Transparent security, SHA-256 cryptographic integrity verification, and access history for every shared asset.</li>
-              <li><strong>FileLink DropBox:</strong> Secure, anonymous client file-request links that isolate submissions in private storage.</li>
+              <li><strong>Altrivelle DropBox:</strong> Secure, anonymous client file-request links that isolate submissions in private storage.</li>
               <li><strong>Developer Flow:</strong> Built-in REST APIs, official CLI binary tool, and HMAC-SHA256 signed webhooks.</li>
             </ul>
           </div>
@@ -738,8 +738,14 @@ class AppRouter {
   }
 }
 
-// Bootstrap
+// Bootstrap Application & Register Production Service Worker
 document.addEventListener('DOMContentLoaded', () => {
   const router = new AppRouter();
   router.init();
+
+  if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    });
+  }
 });
