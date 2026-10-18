@@ -483,8 +483,12 @@ export const dashboardView = {
           To store and manage files permanently in your encrypted cloud vault, sign in or create a free account. You can also send files instantly without an account using Direct P2P Transfers.
         </p>
         <div class="flex-col gap-2">
+          <button type="button" class="btn btn-google-auth btn-block flex-center gap-2" id="modal-btn-google-login">
+            <span class="google-icon-wrapper">${icons.google(18)}</span>
+            <span>Continue with Google</span>
+          </button>
           <a href="#auth" class="btn btn-primary btn-block flex-center gap-2" onclick="document.querySelector('.modal-backdrop')?.remove()">
-            ${icons.logIn(16)} <span>Sign In to Account</span>
+            ${icons.logIn(16)} <span>Sign In with Email</span>
           </a>
           <a href="#auth" class="btn btn-outline btn-block flex-center gap-2" onclick="document.querySelector('.modal-backdrop')?.remove()">
             ${icons.userPlus(16)} <span>Create Free Account</span>
@@ -495,6 +499,20 @@ export const dashboardView = {
         </div>
       </div>
     `);
+
+    const googleBtn = document.getElementById('modal-btn-google-login');
+    if (googleBtn) {
+      googleBtn.addEventListener('click', async () => {
+        googleBtn.disabled = true;
+        googleBtn.innerHTML = `<span class="btn-spinner"></span> <span>Connecting to Google...</span>`;
+        try {
+          await authService.signInWithGoogle();
+        } catch (err) {
+          toast.error(err.message || 'Google sign-in could not be initiated.');
+          modal.close();
+        }
+      });
+    }
   },
 
   async handleFilesUpload(filesList, container) {

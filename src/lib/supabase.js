@@ -53,6 +53,10 @@ export function getSupabase() {
         data: null,
         error: new Error('Supabase credentials not configured.'),
       }),
+      signInWithOAuth: async () => ({
+        data: null,
+        error: new Error('Supabase credentials not configured.'),
+      }),
       signOut: async () => ({ error: null }),
       resetPasswordForEmail: async () => ({
         error: new Error('Supabase credentials not configured.'),

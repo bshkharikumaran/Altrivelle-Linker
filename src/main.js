@@ -51,8 +51,38 @@ class AppRouter {
     this.currentRoute = 'showcase';
   }
 
+  processOAuthRedirectState() {
+    try {
+      const searchParams = new URLSearchParams(window.location.search);
+      const hash = window.location.hash.replace(/^#/, '');
+      const hashParams = new URLSearchParams(hash);
+
+      // Check for OAuth error
+      const errorDesc = searchParams.get('error_description') || hashParams.get('error_description');
+      const errorCode = searchParams.get('error') || hashParams.get('error');
+
+      if (errorCode || errorDesc) {
+        const message = errorDesc || errorCode || 'Google authentication could not be completed.';
+        console.warn('OAuth redirect error detected:', errorCode, errorDesc);
+        toast.error(`Authentication: ${decodeURIComponent(message).replace(/\+/g, ' ')}`);
+        window.history.replaceState(null, '', window.location.pathname + '#auth');
+        return 'auth';
+      }
+
+      // Check if URL has token fragments from OAuth redirect (#access_token=... or ?code=...)
+      if (hash.includes('access_token=') || searchParams.has('code')) {
+        window.history.replaceState(null, '', window.location.pathname + '#dashboard');
+        return 'dashboard';
+      }
+    } catch (_) {}
+    return null;
+  }
+
   async init() {
     themeManager.init();
+
+    // Check and process OAuth redirect error or completion
+    const oauthRoute = this.processOAuthRedirectState();
 
     try {
       // Check user session
@@ -68,10 +98,15 @@ class AppRouter {
         this.currentUser = session?.user || null;
         if (event === 'SIGNED_OUT') {
           this.currentUser = null;
+          await this.updateUserSidebar();
           this.navigate('auth');
         } else if (event === 'SIGNED_IN') {
-          this.updateUserSidebar();
-          if (this.currentRoute === 'auth') {
+          await this.updateUserSidebar();
+          // Clean OAuth URL params if lingering
+          if (window.location.search.includes('code=') || window.location.hash.includes('access_token=')) {
+            window.history.replaceState(null, '', window.location.pathname + '#dashboard');
+          }
+          if (this.currentRoute === 'auth' || !this.currentRoute || this.currentRoute === 'showcase') {
             this.navigate('dashboard');
           }
         }
@@ -83,7 +118,11 @@ class AppRouter {
     window.addEventListener('hashchange', () => this.handleRouting());
 
     this.bindGlobalEvents();
-    await this.handleRouting();
+    if (oauthRoute) {
+      this.navigate(oauthRoute);
+    } else {
+      await this.handleRouting();
+    }
     await this.updateUserSidebar();
   }
 
@@ -91,6 +130,13 @@ class AppRouter {
     let rawHash = window.location.hash.replace('#', '').trim();
     // Support URL query params like #transfers?role=receive&room=ALT-8492
     let hash = rawHash.split('?')[0] || '';
+
+    // Handle OAuth callback token fragments in hash
+    if (hash.includes('access_token=') || hash.includes('refresh_token=')) {
+      window.history.replaceState(null, '', window.location.pathname + '#dashboard');
+      hash = 'dashboard';
+    }
+
     if (!hash) hash = 'showcase';
 
     // Route protection: if auth view, handle specifically
@@ -218,23 +264,36 @@ class AppRouter {
 
     if (this.currentUser) {
       const email = this.currentUser.email || '';
-      const name = this.currentUser.user_metadata?.full_name || email.split('@')[0] || 'User';
+      const name = this.currentUser.user_metadata?.full_name || this.currentUser.user_metadata?.name || email.split('@')[0] || 'User';
       const initial = name.charAt(0).toUpperCase();
+      const avatarUrl = this.currentUser.user_metadata?.avatar_url || this.currentUser.user_metadata?.picture || null;
+      const isGoogle = authService.isGoogleUser(this.currentUser);
+
+      const renderAvatar = () => {
+        if (avatarUrl) {
+          return `<img src="${avatarUrl}" alt="${escapeHtml(name)}" class="user-avatar-img" referrerpolicy="no-referrer" onerror="this.onerror=null; this.parentElement.textContent='${initial}'" />`;
+        }
+        return initial;
+      };
 
       if (nameEl) {
-        nameEl.innerHTML = `${escapeHtml(name)} ${isAdmin ? '<span class="badge badge-admin-inline">ADMIN</span>' : ''}`;
+        nameEl.innerHTML = `
+          <span class="user-display-name">${escapeHtml(name)}</span>
+          ${isGoogle ? `<span class="badge badge-google-inline" title="Signed in with Google">${icons.google(12)}</span>` : ''}
+          ${isAdmin ? '<span class="badge badge-admin-inline">ADMIN</span>' : ''}
+        `;
       }
       if (emailEl) emailEl.textContent = email;
       if (avatarEl) {
-        avatarEl.textContent = initial;
+        avatarEl.innerHTML = renderAvatar();
         avatarEl.classList.remove('guest-avatar-badge');
       }
       if (topbarAvatarEl) {
-        topbarAvatarEl.textContent = initial;
+        topbarAvatarEl.innerHTML = renderAvatar();
         topbarAvatarEl.classList.remove('guest-avatar-badge');
         topbarAvatarEl.title = `${name} (${email}) - Account Menu`;
       }
-      if (mobileAvatarEl) mobileAvatarEl.textContent = initial;
+      if (mobileAvatarEl) mobileAvatarEl.innerHTML = renderAvatar();
       if (topbarSigninBtn) topbarSigninBtn.classList.add('hidden');
       if (logoutBtn) {
         logoutBtn.title = 'Sign Out';
@@ -328,8 +387,12 @@ class AppRouter {
         </div>
 
         <div class="guest-dropdown-actions">
+          <button type="button" class="btn btn-google-auth btn-block btn-sm flex-center gap-2 mb-2" id="guest-menu-btn-google">
+            <span class="google-icon-wrapper">${icons.google(16)}</span>
+            <span>Continue with Google</span>
+          </button>
           <button type="button" class="btn btn-primary btn-block btn-sm flex-center gap-1" id="guest-menu-btn-signin">
-            ${icons.logIn(15)} <span>Sign In to Account</span>
+            ${icons.logIn(15)} <span>Sign In with Email</span>
           </button>
           <button type="button" class="btn btn-outline btn-block btn-sm flex-center gap-1" id="guest-menu-btn-signup">
             ${icons.userPlus(15)} <span>Create Free Account</span>
@@ -357,6 +420,15 @@ class AppRouter {
       dropdown.classList.remove('hidden');
 
       const closeDropdown = () => dropdown.classList.add('hidden');
+
+      dropdown.querySelector('#guest-menu-btn-google')?.addEventListener('click', async () => {
+        closeDropdown();
+        try {
+          await authService.signInWithGoogle();
+        } catch (err) {
+          toast.error(err.message || 'Unable to connect to Google authentication.');
+        }
+      });
 
       dropdown.querySelector('#guest-menu-btn-signin')?.addEventListener('click', () => {
         closeDropdown();
@@ -396,26 +468,27 @@ class AppRouter {
     // 2. Authenticated Real User Menu
     const profile = await authService.getProfile();
     const isAdmin = await adminService.isCurrentUserAdmin();
+    const isGoogle = authService.isGoogleUser(user);
 
     const email = user.email || '';
-    const name = profile?.full_name || user?.user_metadata?.full_name || email.split('@')[0] || 'User';
+    const name = profile?.full_name || user?.user_metadata?.full_name || user?.user_metadata?.name || email.split('@')[0] || 'User';
     const initial = name.charAt(0).toUpperCase();
+    const avatarUrl = profile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture || null;
     const planTier = (profile?.plan_tier || 'community').toUpperCase();
 
-    let stats = null;
-    try { stats = await filesService.getStats(); } catch (_) {}
-    const used = stats?.totalBytes || profile?.storage_used || 0;
-    const quota = stats?.quotaBytes || profile?.storage_quota || APP_CONFIG.defaultQuotaBytes;
-    const percent = Math.min(100, Math.round((used / quota) * 100));
+    const avatarHtml = avatarUrl
+      ? `<img src="${avatarUrl}" alt="${escapeHtml(name)}" class="user-avatar-img" referrerpolicy="no-referrer" onerror="this.onerror=null; this.parentElement.textContent='${initial}'" />`
+      : initial;
 
     dropdown.innerHTML = `
       <div class="profile-dropdown-header">
-        <div class="profile-dropdown-avatar">${initial}</div>
+        <div class="profile-dropdown-avatar">${avatarHtml}</div>
         <div class="profile-dropdown-info">
           <div class="profile-dropdown-name">${escapeHtml(name)}</div>
           <div class="profile-dropdown-email">${escapeHtml(email)}</div>
           <div class="profile-dropdown-badges mt-1 flex-center gap-1">
             <span class="badge badge-success text-xs">${planTier} PLAN</span>
+            ${isGoogle ? `<span class="badge badge-google text-xs flex-center gap-1" title="Connected with Google">${icons.google(11)} GOOGLE</span>` : ''}
             ${isAdmin ? '<span class="badge badge-admin-inline">ADMIN</span>' : ''}
           </div>
         </div>

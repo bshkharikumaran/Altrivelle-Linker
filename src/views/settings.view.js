@@ -34,6 +34,11 @@ export const settingsView = {
     const quota = this.profile?.storage_quota || APP_CONFIG.defaultQuotaBytes;
     const percent = Math.min(100, Math.round((used / quota) * 100));
 
+    const fullName = this.profile?.full_name || this.user?.user_metadata?.full_name || this.user?.user_metadata?.name || this.user?.email?.split('@')[0] || 'User';
+    const avatarUrl = this.profile?.avatar_url || this.user?.user_metadata?.avatar_url || this.user?.user_metadata?.picture || null;
+    const initial = fullName.charAt(0).toUpperCase();
+    const isGoogle = authService.isGoogleUser(this.user);
+
     container.innerHTML = `
       <div class="settings-page animate-fade-in">
         <div class="view-header">
@@ -51,14 +56,35 @@ export const settingsView = {
               <div class="section-card-header">
                 <div>
                   <h3 class="section-title">User Profile</h3>
-                  <p class="section-subtitle">Your personal account information</p>
+                  <p class="section-subtitle">Your personal account information & authentication</p>
                 </div>
               </div>
+
+              <!-- Profile Identity Row -->
+              <div class="settings-profile-badge-row flex-center gap-3 mb-4">
+                <div class="settings-profile-avatar">
+                  ${avatarUrl
+                    ? `<img src="${avatarUrl}" alt="${escapeHtml(fullName)}" class="user-avatar-img" referrerpolicy="no-referrer" onerror="this.onerror=null; this.parentElement.textContent='${initial}'" />`
+                    : initial}
+                </div>
+                <div class="settings-profile-info">
+                  <div class="font-bold text-base">${escapeHtml(fullName)}</div>
+                  <div class="text-xs text-muted mb-1">${escapeHtml(this.user?.email || 'Guest Visitor')}</div>
+                  <div>
+                    ${
+                      isGoogle
+                        ? `<span class="badge badge-google text-xs inline-flex items-center gap-1">${icons.google(13)} Google Authentication Connected</span>`
+                        : `<span class="badge badge-secondary text-xs inline-flex items-center gap-1">${icons.mail(13)} Email & Password Account</span>`
+                    }
+                  </div>
+                </div>
+              </div>
+
               <form id="profile-form" class="settings-form">
                 <div class="form-group">
                   <label for="profile-email">Email Address</label>
                   <input type="email" id="profile-email" class="form-input" value="${escapeHtml(this.user?.email || '')}" disabled />
-                  <p class="form-hint">Email is managed through Supabase Authentication.</p>
+                  <p class="form-hint">${isGoogle ? 'Email is managed and verified securely via Google OAuth 2.0.' : 'Email is managed through Supabase Authentication.'}</p>
                 </div>
                 <div class="form-group">
                   <label for="profile-fullname">Full Name</label>

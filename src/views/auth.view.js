@@ -49,6 +49,24 @@ export const authView = {
                 : ''
             }
 
+            <!-- Google OAuth Direct Action -->
+            ${
+              this.currentTab !== 'forgot'
+                ? `
+                <div class="auth-social-container">
+                  <button type="button" class="btn btn-google-auth btn-block flex-center gap-2" id="btn-google-auth" title="Sign in with your Google account">
+                    <span class="google-icon-wrapper">${icons.google(20)}</span>
+                    <span class="btn-text">Continue with Google</span>
+                    <span class="btn-spinner hidden"></span>
+                  </button>
+                  <div class="auth-divider">
+                    <span>OR CONTINUE WITH EMAIL</span>
+                  </div>
+                </div>
+              `
+                : ''
+            }
+
             <!-- Auth Form -->
             <form id="auth-form" class="auth-form" novalidate>
               <div id="auth-form-fields">
@@ -271,6 +289,28 @@ export const authView = {
         sessionStorage.setItem('altrivelle_guest_dismissed', 'true');
         toast.info('Exploring Altrivelle Linker in Guest Mode.');
         window.location.hash = '#dashboard';
+      });
+    }
+
+    // Google OAuth button
+    const googleBtn = container.querySelector('#btn-google-auth');
+    if (googleBtn) {
+      googleBtn.addEventListener('click', async () => {
+        const btnText = googleBtn.querySelector('.btn-text');
+        const spinner = googleBtn.querySelector('.btn-spinner');
+        googleBtn.disabled = true;
+        if (btnText) btnText.textContent = 'Redirecting to Google...';
+        if (spinner) spinner.classList.remove('hidden');
+
+        try {
+          await authService.signInWithGoogle();
+        } catch (err) {
+          console.error('Google Sign-In Error:', err);
+          toast.error(err.message || 'Unable to connect to Google authentication.');
+          googleBtn.disabled = false;
+          if (btnText) btnText.textContent = 'Continue with Google';
+          if (spinner) spinner.classList.add('hidden');
+        }
       });
     }
 

@@ -234,4 +234,39 @@ describe('Altrivelle Linker — Automated Unit Test Suite', () => {
     expect(dataUrl.startsWith('data:image/png;base64,')).toBe(true);
     expect(dataUrl.length).toBeGreaterThan(100);
   });
+
+  it('correctly detects Google authenticated accounts and provides authentic Google branding', async () => {
+    const { authService } = await import('../src/services/auth.service.js');
+    const { icons } = await import('../src/ui/icons.js');
+
+    // 1. Google SVG validation
+    const googleSvg = icons.google(20);
+    expect(googleSvg).toContain('svg');
+    expect(googleSvg).toContain('#4285F4'); // Google Blue
+    expect(googleSvg).toContain('#34A853'); // Google Green
+    expect(googleSvg).toContain('#FBBC05'); // Google Yellow
+    expect(googleSvg).toContain('#EA4335'); // Google Red
+
+    // 2. isGoogleUser detection
+    const googleUser1 = {
+      email: 'alex@gmail.com',
+      app_metadata: { provider: 'google', providers: ['google'] },
+      user_metadata: { full_name: 'Alex Rivera' },
+    };
+    expect(authService.isGoogleUser(googleUser1)).toBe(true);
+
+    const googleUser2 = {
+      email: 'alex@company.com',
+      app_metadata: { provider: 'email' },
+      identities: [{ provider: 'google', id: '12345' }],
+    };
+    expect(authService.isGoogleUser(googleUser2)).toBe(true);
+
+    const emailUser = {
+      email: 'user@domain.com',
+      app_metadata: { provider: 'email', providers: ['email'] },
+    };
+    expect(authService.isGoogleUser(emailUser)).toBe(false);
+    expect(authService.isGoogleUser(null)).toBe(false);
+  });
 });
