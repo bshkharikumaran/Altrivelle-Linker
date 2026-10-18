@@ -9,6 +9,7 @@ import { icons } from '../ui/icons.js';
 import { toast } from '../ui/toast.js';
 import { filesService } from '../services/files.service.js';
 import { shareService } from '../services/share.service.js';
+import { qrModal } from '../ui/qrModal.js';
 
 function formatBytes(bytes, decimals = 1) {
   if (!+bytes) return '0 Bytes';
@@ -239,6 +240,9 @@ export const transfersView = {
                   </button>
                   <button type="button" class="btn btn-outline btn-sm" id="btn-copy-p2p-link">
                     ${icons.link(14)} Copy Join Link
+                  </button>
+                  <button type="button" class="btn btn-outline btn-sm" id="btn-show-p2p-qr">
+                    ${icons.qr(14)} QR Code
                   </button>
                 </div>
               </div>
@@ -501,6 +505,22 @@ export const transfersView = {
           toast.warning('Generate a room code first.');
         }
       });
+
+      const copyP2PQrBtn = container.querySelector('#btn-show-p2p-qr');
+      copyP2PQrBtn?.addEventListener('click', () => {
+        if (this.p2pRoomCode) {
+          const origin = window.location.origin;
+          const joinUrl = `${origin}/#transfers?role=receive&room=${encodeURIComponent(this.p2pRoomCode)}`;
+          qrModal.open({
+            url: joinUrl,
+            fileName: this.p2pFile?.name || 'Direct P2P Room',
+            fileSize: this.p2pFile?.size || null,
+            title: `Scan to Join Room (${this.p2pRoomCode})`,
+          });
+        } else {
+          toast.warning('Generate a room code first.');
+        }
+      });
     }
 
     // P2P RECEIVER events
@@ -569,6 +589,7 @@ export const transfersView = {
               <div class="input-with-button mt-3">
                 <input type="text" readonly value="${link.shareUrl}" class="form-input font-mono" id="ephemeral-url-input" />
                 <button type="button" class="btn btn-primary" id="btn-copy-ephemeral">Copy Link</button>
+                <button type="button" class="btn btn-outline" id="btn-show-ephemeral-qr" title="Show QR Code">${icons.qr(15)} QR</button>
               </div>
               ${link.directFileUrl ? `
                 <div class="mt-2 text-xs text-muted">
@@ -581,6 +602,15 @@ export const transfersView = {
           resultBox.querySelector('#btn-copy-ephemeral')?.addEventListener('click', () => {
             navigator.clipboard.writeText(link.shareUrl);
             toast.success('Ephemeral link copied to clipboard!');
+          });
+
+          resultBox.querySelector('#btn-show-ephemeral-qr')?.addEventListener('click', () => {
+            qrModal.open({
+              url: link.shareUrl,
+              fileName: file.name,
+              fileSize: file.size,
+              title: `Ephemeral QR Code: ${file.name}`,
+            });
           });
 
           toast.success('Ephemeral share created.');

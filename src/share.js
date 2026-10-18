@@ -10,6 +10,7 @@ import { icons } from './ui/icons.js';
 import { toast } from './ui/toast.js';
 import { trustPassport } from './ui/trustPassport.js';
 import { annotationsComponent } from './ui/annotations.js';
+import { qrModal } from './ui/qrModal.js';
 import { inject as injectAnalytics } from '@vercel/analytics';
 import { injectSpeedInsights } from '@vercel/speed-insights';
 
@@ -282,10 +283,13 @@ async function renderActiveFileCard(container, file, link, token, password = nul
         </div>
       </div>
 
-      <!-- Download Action Button -->
-      <div class="share-file-actions">
+      <!-- Download & QR Action Buttons -->
+      <div class="share-file-actions flex-center gap-3 flex-wrap">
         <button type="button" class="btn btn-primary btn-lg btn-download-primary pulse-glow-btn" id="btn-download-shared-file">
           ${icons.download(22)} Download File
+        </button>
+        <button type="button" class="btn btn-outline btn-lg" id="btn-show-file-qr" title="Scan with smartphone camera to open on mobile">
+          ${icons.qr(20)} QR Code
         </button>
       </div>
 
@@ -363,6 +367,18 @@ async function renderActiveFileCard(container, file, link, token, password = nul
       downloadBtn.innerHTML = `${icons.download(22)} Download File`;
       downloadBtn.disabled = false;
     }
+  });
+
+  // QR Code viewer handler
+  const qrBtn = container.querySelector('#btn-show-file-qr');
+  qrBtn?.addEventListener('click', () => {
+    qrModal.open({
+      url: window.location.href,
+      fileName: file.name,
+      fileSize: file.size_bytes,
+      expiryText: link.expires_at ? formatDate(link.expires_at) : null,
+      title: `Scan & Download on Mobile`,
+    });
   });
 
   // Load preview asynchronously if image

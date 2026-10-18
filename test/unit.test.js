@@ -224,4 +224,14 @@ describe('Altrivelle Linker — Automated Unit Test Suite', () => {
     expect(p2pTransferService.joinInterval).toBeNull();
     expect(p2pTransferService.pendingCandidates).toEqual([]);
   });
+
+  it('generates high-density QR code data URLs for instant mobile scanning', async () => {
+    const { qrService } = await import('../src/services/qr.service.js');
+    const testUrl = 'https://altrivelle-linker.vercel.app/s/TEST12345';
+    const dataUrl = await qrService.generateDataURL(testUrl);
+
+    expect(dataUrl).toBeDefined();
+    expect(dataUrl.startsWith('data:image/png;base64,')).toBe(true);
+    expect(dataUrl.length).toBeGreaterThan(100);
+  });
 });

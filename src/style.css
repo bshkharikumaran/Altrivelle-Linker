@@ -5373,4 +5373,58 @@ button {
   }
 }
 
+/* ==============================================================================
+   QR CODE SHARING MODAL & BRANDED CARDS
+   Developed by ALTRIVELLE TECHNOLOGIES
+   ============================================================================== */
+.qr-modal-card {
+  position: relative;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  padding: 24px;
+  box-shadow: var(--shadow-xl);
+  z-index: 101;
+  max-height: 95vh;
+  overflow-y: auto;
+}
+
+.qr-canvas-box {
+  padding: 10px 0;
+}
+
+.qr-card-mount {
+  background: #ffffff;
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.35);
+  display: inline-block;
+  line-height: 0;
+}
+
+.qr-file-summary-pill {
+  background-color: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+}
+
+.qr-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+@media (max-width: 520px) {
+  .qr-modal-card {
+    padding: 18px 14px;
+  }
+  .qr-actions-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .qr-actions-grid .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
 

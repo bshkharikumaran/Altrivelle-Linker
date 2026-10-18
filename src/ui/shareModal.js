@@ -9,6 +9,7 @@ import { icons } from './icons.js';
 import { toast } from './toast.js';
 import { shareService } from '../services/share.service.js';
 import { riskAdvisor } from '../services/riskAdvisor.service.js';
+import { qrModal } from './qrModal.js';
 
 function formatBytes(bytes, decimals = 1) {
   if (!+bytes) return '0 Bytes';
@@ -141,6 +142,12 @@ export function openShareModal(file, onUpdate = null) {
             </button>
           </div>
         </div>
+
+        <div class="result-actions-row flex-center gap-2 mt-3">
+          <button type="button" class="btn btn-outline btn-sm flex-center gap-1" id="btn-modal-show-qr">
+            ${icons.qr(15)} QR Code Sharing
+          </button>
+        </div>
       </div>
 
       <!-- Modal Action Buttons -->
@@ -246,6 +253,9 @@ export function openShareModal(file, onUpdate = null) {
                   <button type="button" class="btn-icon btn-action-copy-web" data-url="${escapeHtml(l.shareUrl)}" title="Copy Web Share Link">
                     ${icons.copy(16)}
                   </button>
+                  <button type="button" class="btn-icon btn-action-qr" data-url="${escapeHtml(l.shareUrl)}" data-token="${escapeHtml(l.token)}" title="QR Code Sharing">
+                    ${icons.qr(16)}
+                  </button>
                   <button type="button" class="btn-icon btn-action-copy-direct" data-url="${escapeHtml(l.directFileUrl)}" title="Copy Direct File Link (For HTML)">
                     ${icons.link(16)}
                   </button>
@@ -260,6 +270,9 @@ export function openShareModal(file, onUpdate = null) {
                   </button>
                 `
                   : `
+                  <button type="button" class="btn-icon btn-action-qr" data-url="${escapeHtml(l.shareUrl)}" data-token="${escapeHtml(l.token)}" title="QR Code Sharing">
+                    ${icons.qr(16)}
+                  </button>
                   <button type="button" class="btn-icon btn-action-edit" data-id="${l.id}" title="Reactivate / Edit Link Settings in DB">
                     ${icons.edit(16)}
                   </button>
@@ -328,6 +341,18 @@ export function openShareModal(file, onUpdate = null) {
         btn.addEventListener('click', async () => {
           await copyToClipboard(btn.dataset.snippet);
           toast.success('HTML snippet copied to clipboard!');
+        });
+      });
+
+      // QR Code Modal Trigger
+      listContainer.querySelectorAll('.btn-action-qr').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          qrModal.open({
+            url: btn.dataset.url,
+            fileName: file.name,
+            fileSize: file.size_bytes,
+            title: `QR Code: ${file.name}`,
+          });
         });
       });
 
@@ -452,6 +477,18 @@ export function openShareModal(file, onUpdate = null) {
         await copyToClipboard(link.htmlSnippet);
         toast.success('HTML snippet copied to clipboard!');
       };
+
+      const qrBtn = document.getElementById('btn-modal-show-qr');
+      if (qrBtn) {
+        qrBtn.onclick = () => {
+          qrModal.open({
+            url: link.shareUrl,
+            fileName: file.name,
+            fileSize: file.size_bytes,
+            title: `QR Code: ${file.name}`,
+          });
+        };
+      }
 
       // Auto-copy direct file link
       await copyToClipboard(link.directFileUrl);
