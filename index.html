@@ -166,10 +166,16 @@
             <svg class="sun-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
           </button>
 
+          <!-- Topbar Sign In Action (shown when not logged in) -->
+          <a href="#auth" class="btn btn-primary btn-sm btn-topbar-signin flex-center gap-1" id="topbar-signin-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+            <span>Sign In</span>
+          </a>
+
           <!-- Topbar Profile Account Controller -->
           <div class="topbar-profile-wrapper" id="topbar-profile-wrapper">
             <button type="button" class="topbar-profile-trigger btn-icon" id="btn-topbar-profile" aria-label="Profile and Account Settings" title="Account & Profile Control">
-              <span class="user-avatar-badge-top" id="topbar-user-avatar">A</span>
+              <span class="user-avatar-badge-top" id="topbar-user-avatar">?</span>
             </button>
           </div>
         </div>

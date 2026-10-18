@@ -185,7 +185,7 @@ export const projectsView = {
         </div>
 
         <div class="modal-credit-footer">
-          FileLink &bull; Developed by ALTRIVELLE TECHNOLOGIES
+          Altrivelle Linker &bull; Developed by ALTRIVELLE TECHNOLOGIES
         </div>
       </div>
     `, {

@@ -1,5 +1,6 @@
 import { filesService } from '../services/files.service.js';
 import { projectsService } from '../services/projects.service.js';
+import { authService } from '../services/auth.service.js';
 import { toast } from '../ui/toast.js';
 import { icons } from '../ui/icons.js';
 import { previewManager } from '../ui/preview.js';
@@ -45,8 +46,42 @@ export const dashboardView = {
   selectedUploadProject: '',
 
   async render(container) {
+    const user = await authService.getCurrentUser();
+    const isGuest = !user;
+    const isBannerDismissed = sessionStorage.getItem('altrivelle_guest_dismissed') === 'true';
+
     container.innerHTML = `
       <div class="dashboard-page animate-fade-in">
+        <!-- Guest Explorer Welcome Banner -->
+        ${
+          isGuest && !isBannerDismissed
+            ? `
+            <div class="guest-welcome-banner animate-fade-in" id="guest-welcome-banner">
+              <div class="guest-banner-icon">
+                <img src="/assets/altrivelle-linker-logo.png" alt="Altrivelle Linker" class="banner-logo" onerror="this.style.display='none'" />
+              </div>
+              <div class="guest-banner-body">
+                <div class="guest-banner-title">
+                  <strong>Welcome to Altrivelle Linker!</strong>
+                  <span class="badge badge-warning text-xs">GUEST MODE</span>
+                </div>
+                <p class="guest-banner-text">
+                  You are exploring as a Guest. Sign in or register to unlock your private 100 MB cloud vault, create client dropboxes, or continue testing with direct device-to-device transfers.
+                </p>
+              </div>
+              <div class="guest-banner-actions">
+                <a href="#auth" class="btn btn-primary btn-sm flex-center gap-1" id="banner-btn-signin">
+                  ${icons.logIn(14)} <span>Sign In / Register</span>
+                </a>
+                <button type="button" class="btn btn-outline btn-sm" id="banner-btn-dismiss">
+                  Continue as Guest
+                </button>
+              </div>
+            </div>
+          `
+            : ''
+        }
+
         <!-- Dashboard Header -->
         <div class="view-header">
           <div>
@@ -340,13 +375,31 @@ export const dashboardView = {
     const browseBtn = container.querySelector('#btn-browse-files');
     const quickUploadBtn = container.querySelector('#btn-quick-upload');
     const dropzone = container.querySelector('#dropzone');
+    const dismissBannerBtn = container.querySelector('#banner-btn-dismiss');
 
-    if (browseBtn && fileInput) {
-      browseBtn.addEventListener('click', () => fileInput.click());
+    if (dismissBannerBtn) {
+      dismissBannerBtn.addEventListener('click', () => {
+        sessionStorage.setItem('altrivelle_guest_dismissed', 'true');
+        container.querySelector('#guest-welcome-banner')?.remove();
+        toast.info('Continuing session in Guest Mode.');
+      });
     }
 
-    if (quickUploadBtn && fileInput) {
-      quickUploadBtn.addEventListener('click', () => fileInput.click());
+    const triggerUploadCheck = async () => {
+      const user = await authService.getCurrentUser();
+      if (!user) {
+        this.showLoginRequiredModal();
+        return;
+      }
+      fileInput?.click();
+    };
+
+    if (browseBtn) {
+      browseBtn.addEventListener('click', triggerUploadCheck);
+    }
+
+    if (quickUploadBtn) {
+      quickUploadBtn.addEventListener('click', triggerUploadCheck);
     }
 
     if (fileInput) {
@@ -376,16 +429,52 @@ export const dashboardView = {
         });
       });
 
-      dropzone.addEventListener('drop', (e) => {
+      dropzone.addEventListener('drop', async (e) => {
         const files = e.dataTransfer?.files;
         if (files?.length) {
+          const user = await authService.getCurrentUser();
+          if (!user) {
+            this.showLoginRequiredModal();
+            return;
+          }
           this.handleFilesUpload(Array.from(files), container);
         }
       });
     }
   },
 
+  showLoginRequiredModal() {
+    modal.open(`
+      <div class="modal-auth-prompt text-center p-3">
+        <div class="modal-auth-icon mb-3 flex-center">
+          <img src="/assets/altrivelle-linker-logo.png" alt="Altrivelle Linker" style="width: 52px; height: 52px; border-radius: 12px; box-shadow: 0 4px 16px rgba(2,132,199,0.35);" onerror="this.style.display='none'" />
+        </div>
+        <h3 class="font-bold text-lg mb-1">Account Required for Cloud Storage</h3>
+        <p class="text-sm text-muted mb-4">
+          To store and manage files permanently in your encrypted cloud vault, sign in or create a free account. You can also send files instantly without an account using Direct P2P Transfers.
+        </p>
+        <div class="flex-col gap-2">
+          <a href="#auth" class="btn btn-primary btn-block flex-center gap-2" onclick="document.querySelector('.modal-backdrop')?.remove()">
+            ${icons.logIn(16)} <span>Sign In to Account</span>
+          </a>
+          <a href="#auth" class="btn btn-outline btn-block flex-center gap-2" onclick="document.querySelector('.modal-backdrop')?.remove()">
+            ${icons.userPlus(16)} <span>Create Free Account</span>
+          </a>
+          <a href="#transfers" class="btn btn-ghost btn-block flex-center gap-2 text-primary" onclick="document.querySelector('.modal-backdrop')?.remove()">
+            ${icons.sparkles(16)} <span>Use Direct Device-to-Device Transfer (No Login)</span>
+          </a>
+        </div>
+      </div>
+    `);
+  },
+
   async handleFilesUpload(filesList, container) {
+    const user = await authService.getCurrentUser();
+    if (!user) {
+      this.showLoginRequiredModal();
+      return;
+    }
+
     const progressList = container.querySelector('#upload-progress-list');
     if (progressList) progressList.classList.remove('hidden');
 

@@ -173,7 +173,7 @@ export const previewManager = {
             </div>
           </div>
           <div class="preview-attribution">
-            Protected by FileLink &bull; Developed by ALTRIVELLE TECHNOLOGIES
+            Protected by Altrivelle Linker &bull; Developed by ALTRIVELLE TECHNOLOGIES
           </div>
         </div>
       `, {

@@ -1,5 +1,6 @@
 import { filesService } from '../services/files.service.js';
 import { projectsService } from '../services/projects.service.js';
+import { authService } from '../services/auth.service.js';
 import { toast } from '../ui/toast.js';
 import { icons } from '../ui/icons.js';
 import { previewManager } from '../ui/preview.js';
@@ -181,7 +182,12 @@ export const filesView = {
       `;
       const btn = area.querySelector('#btn-empty-upload');
       if (btn) {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', async () => {
+          const user = await authService.getCurrentUser();
+          if (!user) {
+            this.showLoginRequiredModal();
+            return;
+          }
           container.querySelector('#files-page-upload-input')?.click();
         });
       }
@@ -414,7 +420,14 @@ export const filesView = {
     const uploadInput = container.querySelector('#files-page-upload-input');
     const uploadBtn = container.querySelector('#btn-trigger-upload');
     if (uploadBtn && uploadInput) {
-      uploadBtn.addEventListener('click', () => uploadInput.click());
+      uploadBtn.addEventListener('click', async () => {
+        const user = await authService.getCurrentUser();
+        if (!user) {
+          this.showLoginRequiredModal();
+          return;
+        }
+        uploadInput.click();
+      });
     }
 
     if (uploadInput) {
@@ -596,5 +609,30 @@ export const filesView = {
         toast.error(`Delete failed: ${err.message}`);
       }
     });
+  },
+
+  showLoginRequiredModal() {
+    modal.open(`
+      <div class="modal-auth-prompt text-center p-3">
+        <div class="modal-auth-icon mb-3 flex-center">
+          <img src="/assets/altrivelle-linker-logo.png" alt="Altrivelle Linker" style="width: 52px; height: 52px; border-radius: 12px; box-shadow: 0 4px 16px rgba(2,132,199,0.35);" onerror="this.style.display='none'" />
+        </div>
+        <h3 class="font-bold text-lg mb-1">Account Required for Cloud Storage</h3>
+        <p class="text-sm text-muted mb-4">
+          To upload and preserve files in your encrypted cloud vault, sign in or create a free account. You can also send files instantly without an account using Direct P2P Transfers.
+        </p>
+        <div class="flex-col gap-2">
+          <a href="#auth" class="btn btn-primary btn-block flex-center gap-2" onclick="document.querySelector('.modal-backdrop')?.remove()">
+            ${icons.logIn(16)} <span>Sign In to Account</span>
+          </a>
+          <a href="#auth" class="btn btn-outline btn-block flex-center gap-2" onclick="document.querySelector('.modal-backdrop')?.remove()">
+            ${icons.userPlus(16)} <span>Create Free Account</span>
+          </a>
+          <a href="#transfers" class="btn btn-ghost btn-block flex-center gap-2 text-primary" onclick="document.querySelector('.modal-backdrop')?.remove()">
+            ${icons.sparkles(16)} <span>Use Direct Device-to-Device Transfer (No Login)</span>
+          </a>
+        </div>
+      </div>
+    `);
   },
 };

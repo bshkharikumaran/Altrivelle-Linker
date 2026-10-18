@@ -190,6 +190,8 @@ class AppRouter {
     const topbarAvatarEl = document.getElementById('topbar-user-avatar');
     const mobileAvatarEl = document.getElementById('mobile-user-avatar');
     const adminNavLink = document.getElementById('nav-link-admin');
+    const topbarSigninBtn = document.getElementById('topbar-signin-btn');
+    const logoutBtn = document.getElementById('btn-logout');
 
     let isAdmin = false;
     try {
@@ -207,23 +209,48 @@ class AppRouter {
     }
 
     if (this.currentUser) {
-      const email = this.currentUser.email || 'user@altrivelle.app';
-      const name = this.currentUser.user_metadata?.full_name || email.split('@')[0];
+      const email = this.currentUser.email || '';
+      const name = this.currentUser.user_metadata?.full_name || email.split('@')[0] || 'User';
       const initial = name.charAt(0).toUpperCase();
 
       if (nameEl) {
         nameEl.innerHTML = `${escapeHtml(name)} ${isAdmin ? '<span class="badge badge-admin-inline">ADMIN</span>' : ''}`;
       }
       if (emailEl) emailEl.textContent = email;
-      if (avatarEl) avatarEl.textContent = initial;
-      if (topbarAvatarEl) topbarAvatarEl.textContent = initial;
+      if (avatarEl) {
+        avatarEl.textContent = initial;
+        avatarEl.classList.remove('guest-avatar-badge');
+      }
+      if (topbarAvatarEl) {
+        topbarAvatarEl.textContent = initial;
+        topbarAvatarEl.classList.remove('guest-avatar-badge');
+        topbarAvatarEl.title = `${name} (${email}) - Account Menu`;
+      }
       if (mobileAvatarEl) mobileAvatarEl.textContent = initial;
+      if (topbarSigninBtn) topbarSigninBtn.classList.add('hidden');
+      if (logoutBtn) {
+        logoutBtn.title = 'Sign Out';
+        logoutBtn.innerHTML = icons.logOut(18);
+      }
     } else {
-      if (nameEl) nameEl.textContent = 'Active Session';
-      if (emailEl) emailEl.textContent = 'ALTRIVELLE TECHNOLOGIES';
-      if (avatarEl) avatarEl.textContent = 'A';
-      if (topbarAvatarEl) topbarAvatarEl.textContent = 'A';
-      if (mobileAvatarEl) mobileAvatarEl.textContent = 'A';
+      // Clean Guest Visitor State - never mock a fake account
+      if (nameEl) nameEl.textContent = 'Guest Visitor';
+      if (emailEl) emailEl.innerHTML = '<span class="text-primary font-semibold">Sign In / Register &rarr;</span>';
+      if (avatarEl) {
+        avatarEl.innerHTML = icons.user(16);
+        avatarEl.classList.add('guest-avatar-badge');
+      }
+      if (topbarAvatarEl) {
+        topbarAvatarEl.innerHTML = icons.user(16);
+        topbarAvatarEl.classList.add('guest-avatar-badge');
+        topbarAvatarEl.title = 'Guest Profile - Sign In or Register';
+      }
+      if (mobileAvatarEl) mobileAvatarEl.innerHTML = icons.user(16);
+      if (topbarSigninBtn) topbarSigninBtn.classList.remove('hidden');
+      if (logoutBtn) {
+        logoutBtn.title = 'Sign In to Account';
+        logoutBtn.innerHTML = icons.logIn(18);
+      }
     }
   }
 
@@ -231,6 +258,16 @@ class AppRouter {
     const percentEl = document.getElementById('sidebar-storage-percent');
     const barEl = document.getElementById('sidebar-storage-bar');
     const textEl = document.getElementById('sidebar-storage-text');
+
+    if (!this.currentUser) {
+      if (percentEl) percentEl.textContent = 'Guest';
+      if (barEl) {
+        barEl.style.width = '0%';
+        barEl.className = 'progress-bar-fill bg-primary';
+      }
+      if (textEl) textEl.textContent = 'Sign in for 100 MB free';
+      return;
+    }
 
     try {
       const stats = await filesService.getStats();
@@ -258,13 +295,102 @@ class AppRouter {
       return;
     }
 
-    // Build rich profile & account controller
     const user = this.currentUser || await authService.getCurrentUser();
+
+    // 1. Unauthenticated Guest Menu (Never display fake mock accounts)
+    if (!user) {
+      dropdown.innerHTML = `
+        <div class="profile-dropdown-header guest-dropdown-header">
+          <div class="profile-dropdown-avatar guest-avatar">
+            ${icons.user(22)}
+          </div>
+          <div class="profile-dropdown-info">
+            <div class="profile-dropdown-name">Guest Explorer</div>
+            <div class="profile-dropdown-email">No account connected</div>
+            <div class="profile-dropdown-badges mt-1">
+              <span class="badge badge-warning text-xs">GUEST ACCESS</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="guest-dropdown-notice">
+          <p class="text-xs text-muted mb-0">
+            Sign in or create a free account to activate your private 100 MB cloud vault, create client dropboxes, and share secure links.
+          </p>
+        </div>
+
+        <div class="guest-dropdown-actions">
+          <button type="button" class="btn btn-primary btn-block btn-sm flex-center gap-1" id="guest-menu-btn-signin">
+            ${icons.logIn(15)} <span>Sign In to Account</span>
+          </button>
+          <button type="button" class="btn btn-outline btn-block btn-sm flex-center gap-1" id="guest-menu-btn-signup">
+            ${icons.userPlus(15)} <span>Create Free Account</span>
+          </button>
+        </div>
+
+        <div class="dropdown-divider"></div>
+
+        <div class="profile-dropdown-links">
+          <button type="button" class="profile-dropdown-item" id="guest-menu-btn-showcase">
+            ${icons.sparkles(16)} <span>Product Showcase</span>
+          </button>
+          <button type="button" class="profile-dropdown-item" id="guest-menu-btn-p2p">
+            ${icons.sparkles(16)} <span>Direct P2P Transfers (No Account)</span>
+          </button>
+          <button type="button" class="profile-dropdown-item" id="guest-menu-btn-plans">
+            ${icons.shield(16)} <span>Subscription Plans (₹ INR)</span>
+          </button>
+          <button type="button" class="profile-dropdown-item" id="guest-menu-btn-about">
+            ${icons.externalLink(16)} <span>About ALTRIVELLE</span>
+          </button>
+        </div>
+      `;
+
+      dropdown.classList.remove('hidden');
+
+      const closeDropdown = () => dropdown.classList.add('hidden');
+
+      dropdown.querySelector('#guest-menu-btn-signin')?.addEventListener('click', () => {
+        closeDropdown();
+        authView.currentTab = 'signin';
+        this.navigate('auth');
+      });
+
+      dropdown.querySelector('#guest-menu-btn-signup')?.addEventListener('click', () => {
+        closeDropdown();
+        authView.currentTab = 'signup';
+        this.navigate('auth');
+      });
+
+      dropdown.querySelector('#guest-menu-btn-showcase')?.addEventListener('click', () => {
+        closeDropdown();
+        this.navigate('showcase');
+      });
+
+      dropdown.querySelector('#guest-menu-btn-p2p')?.addEventListener('click', () => {
+        closeDropdown();
+        this.navigate('transfers');
+      });
+
+      dropdown.querySelector('#guest-menu-btn-plans')?.addEventListener('click', () => {
+        closeDropdown();
+        this.navigate('plans');
+      });
+
+      dropdown.querySelector('#guest-menu-btn-about')?.addEventListener('click', () => {
+        closeDropdown();
+        this.showCompanyModal();
+      });
+
+      return;
+    }
+
+    // 2. Authenticated Real User Menu
     const profile = await authService.getProfile();
     const isAdmin = await adminService.isCurrentUserAdmin();
 
-    const email = user?.email || 'user@altrivelle.app';
-    const name = profile?.full_name || user?.user_metadata?.full_name || email.split('@')[0];
+    const email = user.email || '';
+    const name = profile?.full_name || user?.user_metadata?.full_name || email.split('@')[0] || 'User';
     const initial = name.charAt(0).toUpperCase();
     const planTier = (profile?.plan_tier || 'community').toUpperCase();
 
@@ -315,7 +441,7 @@ class AppRouter {
           </button>
         ` : ''}
         <button type="button" class="profile-dropdown-item" id="menu-btn-switch">
-          ${icons.users(16)} <span>Switch / Sign In Account</span>
+          ${icons.users(16)} <span>Switch / Re-authenticate</span>
         </button>
       </div>
 
@@ -364,6 +490,7 @@ class AppRouter {
         await authService.signOut();
         toast.info('Signed out successfully.');
         this.currentUser = null;
+        await this.updateUserSidebar();
         this.navigate('auth');
       } catch (err) {
         toast.error(`Error signing out: ${err.message}`);
@@ -441,17 +568,38 @@ class AppRouter {
       });
     });
 
-    // Logout
+    // Logout or Sign In trigger
     const logoutBtn = document.getElementById('btn-logout');
     if (logoutBtn) {
-      logoutBtn.addEventListener('click', async () => {
+      logoutBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (!this.currentUser) {
+          authView.currentTab = 'signin';
+          this.navigate('auth');
+          return;
+        }
         try {
           await authService.signOut();
           toast.info('Signed out successfully.');
           this.currentUser = null;
+          await this.updateUserSidebar();
           this.navigate('auth');
         } catch (err) {
           toast.error(`Error signing out: ${err.message}`);
+        }
+      });
+    }
+
+    // Sidebar user footer card click
+    const userFooter = document.getElementById('sidebar-user-footer');
+    if (userFooter) {
+      userFooter.addEventListener('click', (e) => {
+        if (e.target.closest('#btn-logout')) return;
+        if (!this.currentUser) {
+          authView.currentTab = 'signin';
+          this.navigate('auth');
+        } else {
+          this.toggleProfileMenu();
         }
       });
     }

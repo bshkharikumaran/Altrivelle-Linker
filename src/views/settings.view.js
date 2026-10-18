@@ -128,7 +128,7 @@ export const settingsView = {
 
               <div class="brand-showcase-body">
                 <p class="brand-description">
-                  FileLink is architected and built by <strong>ALTRIVELLE TECHNOLOGIES</strong> as an enterprise-grade file hosting and secure sharing platform.
+                  Altrivelle Linker is architected and built by <strong>ALTRIVELLE TECHNOLOGIES</strong> as an enterprise-grade file hosting and secure sharing platform.
                 </p>
 
                 <div class="specs-list">
@@ -138,7 +138,7 @@ export const settingsView = {
                   </div>
                   <div class="spec-item">
                     <span class="spec-label">Version</span>
-                    <span class="spec-value">1.0.0 (Production)</span>
+                    <span class="spec-value">1.2.0 (Production)</span>
                   </div>
                   <div class="spec-item">
                     <span class="spec-label">Security</span>
@@ -151,7 +151,7 @@ export const settingsView = {
                 </div>
 
                 <div class="brand-footer-credit">
-                  &copy; 2026 FileLink. All rights reserved. Developed by ALTRIVELLE TECHNOLOGIES.
+                  &copy; 2026 Altrivelle Linker. All rights reserved. Developed by ALTRIVELLE TECHNOLOGIES.
                 </div>
               </div>
             </div>
