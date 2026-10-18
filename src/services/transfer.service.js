@@ -84,6 +84,10 @@ export class P2PTransferManager {
     this.broadcastChannel = null;
     this.currentRoomCode = null;
     this.isHost = false;
+    this.isNegotiating = false;
+    this.pendingCandidates = [];
+    this.joinInterval = null;
+    this.hostDebounceTimer = null;
   }
 
   // Generate 6-character room code (e.g. ALT-8492)
@@ -98,6 +102,17 @@ export class P2PTransferManager {
 
   // Clean up active connections
   cleanup() {
+    if (this.joinInterval) {
+      clearInterval(this.joinInterval);
+      this.joinInterval = null;
+    }
+    if (this.hostDebounceTimer) {
+      clearTimeout(this.hostDebounceTimer);
+      this.hostDebounceTimer = null;
+    }
+    this.pendingCandidates = [];
+    this.isNegotiating = false;
+
     if (this.activeChannel) {
       try { this.activeChannel.close(); } catch (_) {}
       this.activeChannel = null;
@@ -118,6 +133,17 @@ export class P2PTransferManager {
       this.broadcastChannel = null;
     }
     this.currentRoomCode = null;
+  }
+
+  async flushPendingCandidates() {
+    if (!this.activePc || !this.activePc.remoteDescription) return;
+    const candidates = [...this.pendingCandidates];
+    this.pendingCandidates = [];
+    for (const cand of candidates) {
+      try {
+        await this.activePc.addIceCandidate(cand);
+      } catch (_) {}
+    }
   }
 
   // Signaling setup
@@ -170,21 +196,46 @@ export class P2PTransferManager {
   startSenderSession({ roomCode, file, onStatus, onProgress, onComplete, onError }) {
     this.cleanup();
     this.isHost = true;
+    this.pendingCandidates = [];
 
     onStatus?.('waiting', 'Room initialized. Waiting for recipient to connect...');
 
     this.setupSignaling(roomCode, async (signal) => {
       try {
         if (signal.type === 'join') {
-          onStatus?.('connecting', 'Recipient detected. Creating direct WebRTC tunnel...');
-          await this.initiateHostPeer(file, onStatus, onProgress, onComplete, onError);
-        } else if (signal.type === 'answer') {
-          if (this.activePc) {
-            await this.activePc.setRemoteDescription(new RTCSessionDescription(signal.data));
+          // If already connected or currently transferring, ignore duplicate joins
+          if (this.activeChannel && this.activeChannel.readyState === 'open') {
+            return;
           }
-        } else if (signal.type === 'candidate') {
-          if (this.activePc && signal.data) {
-            await this.activePc.addIceCandidate(new RTCIceCandidate(signal.data)).catch(() => {});
+          if (this.isNegotiating) return;
+
+          this.isNegotiating = true;
+          onStatus?.('connecting', 'Recipient detected. Creating direct WebRTC tunnel...');
+
+          if (this.hostDebounceTimer) clearTimeout(this.hostDebounceTimer);
+          this.hostDebounceTimer = setTimeout(async () => {
+            try {
+              await this.initiateHostPeer(file, onStatus, onProgress, onComplete, onError);
+            } finally {
+              this.isNegotiating = false;
+            }
+          }, 250);
+        } else if (signal.type === 'answer') {
+          if (!this.activePc) return;
+          // WebRTC setRemoteDescription for answer is ONLY valid in 'have-local-offer'
+          if (this.activePc.signalingState === 'have-local-offer') {
+            await this.activePc.setRemoteDescription(new RTCSessionDescription(signal.data));
+            await this.flushPendingCandidates();
+          } else {
+            console.log(`[P2P Host] Ignoring answer in state: ${this.activePc.signalingState}`);
+          }
+        } else if (signal.type === 'candidate' && signal.data) {
+          if (!this.activePc) return;
+          const candidate = new RTCIceCandidate(signal.data);
+          if (this.activePc.remoteDescription && this.activePc.remoteDescription.type) {
+            await this.activePc.addIceCandidate(candidate).catch(() => {});
+          } else {
+            this.pendingCandidates.push(candidate);
           }
         }
       } catch (err) {
@@ -195,6 +246,11 @@ export class P2PTransferManager {
   }
 
   async initiateHostPeer(file, onStatus, onProgress, onComplete, onError) {
+    if (this.activePc) {
+      try { this.activePc.close(); } catch (_) {}
+      this.activePc = null;
+    }
+
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
     this.activePc = pc;
 
@@ -293,6 +349,7 @@ export class P2PTransferManager {
   startReceiverSession({ roomCode, onStatus, onProgress, onFileReceived, onError }) {
     this.cleanup();
     this.isHost = false;
+    this.pendingCandidates = [];
 
     onStatus?.('connecting', `Joining room ${roomCode} & seeking sender...`);
 
@@ -304,7 +361,17 @@ export class P2PTransferManager {
     this.setupSignaling(roomCode, async (signal) => {
       try {
         if (signal.type === 'offer') {
+          // If already connected or transferring, ignore duplicate offers
+          if (this.activeChannel && this.activeChannel.readyState === 'open') {
+            return;
+          }
+
           onStatus?.('connecting', 'Sender found. Negotiating WebRTC peer connection...');
+
+          if (this.activePc) {
+            try { this.activePc.close(); } catch (_) {}
+            this.activePc = null;
+          }
 
           const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
           this.activePc = pc;
@@ -321,6 +388,10 @@ export class P2PTransferManager {
             dc.binaryType = 'arraybuffer';
 
             dc.onopen = () => {
+              if (this.joinInterval) {
+                clearInterval(this.joinInterval);
+                this.joinInterval = null;
+              }
               onStatus?.('connected', 'Direct WebRTC tunnel established. Receiving data...');
               startTime = performance.now();
             };
@@ -387,12 +458,17 @@ export class P2PTransferManager {
           };
 
           await pc.setRemoteDescription(new RTCSessionDescription(signal.data));
+          await this.flushPendingCandidates();
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
           this.sendSignal({ type: 'answer', data: answer });
-        } else if (signal.type === 'candidate') {
-          if (this.activePc && signal.data) {
-            await this.activePc.addIceCandidate(new RTCIceCandidate(signal.data)).catch(() => {});
+        } else if (signal.type === 'candidate' && signal.data) {
+          if (!this.activePc) return;
+          const candidate = new RTCIceCandidate(signal.data);
+          if (this.activePc.remoteDescription && this.activePc.remoteDescription.type) {
+            await this.activePc.addIceCandidate(candidate).catch(() => {});
+          } else {
+            this.pendingCandidates.push(candidate);
           }
         }
       } catch (err) {
@@ -406,14 +482,16 @@ export class P2PTransferManager {
       this.sendSignal({ type: 'join', roomCode });
     }, 100);
 
-    // Keep pinging join every 1.5s until connected
-    const joinInterval = setInterval(() => {
+    // Keep pinging join every 2s until connected
+    if (this.joinInterval) clearInterval(this.joinInterval);
+    this.joinInterval = setInterval(() => {
       if (this.activeChannel && this.activeChannel.readyState === 'open') {
-        clearInterval(joinInterval);
+        clearInterval(this.joinInterval);
+        this.joinInterval = null;
       } else {
         this.sendSignal({ type: 'join', roomCode });
       }
-    }, 1500);
+    }, 2000);
   }
 }
 

@@ -132,6 +132,38 @@ export const shareService = {
     return data;
   },
 
+  async updateShareLink(linkId, options = {}) {
+    const supabase = getSupabase();
+    const user = await authService.getCurrentUser();
+    if (!user) throw new Error('Not authenticated');
+
+    const updatePayload = {};
+
+    if (options.duration || options.customDate) {
+      updatePayload.expires_at = this.calculateExpiration(options.duration || '7d', options.customDate);
+    }
+    if ('password' in options) {
+      updatePayload.password_hash = options.password && options.password.trim() ? options.password.trim() : null;
+    }
+    if ('maxDownloads' in options) {
+      updatePayload.max_downloads = options.maxDownloads ? parseInt(options.maxDownloads, 10) : null;
+    }
+    if ('is_revoked' in options) {
+      updatePayload.is_revoked = Boolean(options.is_revoked);
+    }
+
+    const { data, error } = await supabase
+      .from('share_links')
+      .update(updatePayload)
+      .eq('id', linkId)
+      .eq('user_id', user.id)
+      .select('*')
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
   async deleteShareLink(linkId) {
     const supabase = getSupabase();
     const user = await authService.getCurrentUser();
@@ -155,8 +187,8 @@ export const shareService = {
 
   buildDirectFileUrl(token) {
     const origin = typeof window !== 'undefined' && window.location?.origin ? window.location.origin : '';
-    // Resolves directly to the raw binary/media stream via 302 redirect for HTML embeds & direct file access
-    return `${origin}/api/share/${encodeURIComponent(token)}?raw=1`;
+    // Resolves directly to the raw binary/media stream for HTML embeds & direct file access
+    return `${origin}/raw/${encodeURIComponent(token)}`;
   },
 
   buildHtmlSnippet(file, token) {
@@ -194,12 +226,13 @@ export const shareService = {
     // 1. Try serverless function first (handles private storage paths, server-side validation, Vercel & Vite local dev)
     try {
       const res = await fetch(`/api/share/${encodeURIComponent(cleanToken)}?action=metadata`);
-      if (res.ok) {
+      const contentType = res.headers.get('content-type') || '';
+      if (res.ok && contentType.includes('application/json')) {
         const json = await res.json();
         if (json && typeof json === 'object') {
           return json;
         }
-      } else if (res.status === 404 || res.status === 410 || res.status === 403) {
+      } else if ((res.status === 404 || res.status === 410 || res.status === 403) && contentType.includes('application/json')) {
         const json = await res.json().catch(() => null);
         if (json?.error) {
           return {
@@ -337,42 +370,82 @@ export const shareService = {
   async getRecipientDownloadUrl(token, storagePath, fileName, password = null) {
     const cleanToken = (token || '').trim();
 
-    // 1. Try serverless API
+    // 1. Direct Supabase Storage signed URL (fastest and most reliable direct path)
+    if (storagePath) {
+      try {
+        const supabase = getSupabase();
+        try {
+          await supabase.rpc('increment_share_download', { p_token: cleanToken });
+        } catch (_) {}
+
+        const { data: signedData, error: signError } = await supabase.storage
+          .from('filelink-files')
+          .createSignedUrl(storagePath, 3600, {
+            download: fileName || true,
+          });
+
+        if (!signError && signedData?.signedUrl) {
+          return signedData.signedUrl;
+        }
+
+        // Try public url
+        const { data: pubData } = supabase.storage
+          .from('filelink-files')
+          .getPublicUrl(storagePath, { download: fileName || true });
+
+        if (pubData?.publicUrl) {
+          return pubData.publicUrl;
+        }
+      } catch (storageErr) {
+        console.warn('[Direct Storage URL Warning]:', storageErr?.message);
+      }
+    }
+
+    // 2. Try serverless API (safely checking content-type)
     try {
       const res = await fetch(
         `/api/share/${encodeURIComponent(cleanToken)}?action=download${password ? `&password=${encodeURIComponent(password)}` : ''}`
       );
-      if (res.ok) {
+      const contentType = res.headers.get('content-type') || '';
+
+      if (contentType.includes('application/json')) {
         const data = await res.json();
-        if (data?.downloadUrl) return data.downloadUrl;
-      } else {
-        const errJson = await res.json().catch(() => null);
-        if (errJson?.error) {
-          throw new Error(errJson.error);
+        if (res.ok && data?.downloadUrl) {
+          return data.downloadUrl;
         }
+        if (!res.ok && data?.error) {
+          throw new Error(data.error);
+        }
+      } else if (res.ok) {
+        // If API returned binary stream or file directly
+        const blob = await res.blob();
+        return URL.createObjectURL(blob);
       }
     } catch (apiErr) {
-      if (apiErr.message && !apiErr.message.includes('fetch')) {
+      // Re-throw genuine permission/password errors
+      if (apiErr.message && !apiErr.message.includes('fetch') && !apiErr.message.includes('JSON') && !apiErr.message.includes('Unexpected token')) {
         throw apiErr;
       }
     }
 
-    // 2. Direct Supabase Storage signed URL
-    const supabase = getSupabase();
+    // 3. Fallback: Lookup storage_path from database via RPC
     try {
-      await supabase.rpc('increment_share_download', { p_token: cleanToken });
-    } catch {
-      // non-blocking
+      const supabase = getSupabase();
+      const { data: rpcData } = await supabase.rpc('resolve_share_token', { p_token: cleanToken });
+      const record = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+      if (record && record.valid && record.storage_path) {
+        const { data: signedData } = await supabase.storage
+          .from('filelink-files')
+          .createSignedUrl(record.storage_path, 3600, {
+            download: fileName || record.file_name || true,
+          });
+        if (signedData?.signedUrl) return signedData.signedUrl;
+      }
+    } catch (dbErr) {
+      console.warn('[DB Fallback Warning]:', dbErr);
     }
 
-    const { data, error } = await supabase.storage
-      .from('filelink-files')
-      .createSignedUrl(storagePath, 60, {
-        download: fileName,
-      });
-
-    if (error) throw error;
-    return data.signedUrl;
+    throw new Error('Unable to retrieve download URL. The link may have expired or was removed.');
   },
 
   // Verify passcode with serverless API and client fallback

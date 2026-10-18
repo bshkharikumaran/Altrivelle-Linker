@@ -108,7 +108,7 @@ describe('Altrivelle Linker — Automated Unit Test Suite', () => {
   it('generates direct file links and responsive HTML embed snippets', () => {
     const token = 'test-token-xyz';
     const directUrl = shareService.buildDirectFileUrl(token);
-    expect(directUrl).toContain(`/api/share/${token}?raw=1`);
+    expect(directUrl).toContain(`/raw/${token}`);
 
     // Image snippet
     const imgSnippet = shareService.buildHtmlSnippet({ name: 'banner.png', mime_type: 'image/png' }, token);
@@ -211,5 +211,17 @@ describe('Altrivelle Linker — Automated Unit Test Suite', () => {
     const minified = compressionService.compressText(rawJson, 'config.json');
     expect(minified.compressedBytes).toBeLessThan(minified.originalBytes);
     expect(minified.content).toBe('{"company":"ALTRIVELLE TECHNOLOGIES","status":"active"}');
+  });
+
+  it('generates standardized 6-character room codes and safely manages connection lifecycle in P2P transfer manager', async () => {
+    const { p2pTransferService } = await import('../src/services/transfer.service.js');
+    const code = p2pTransferService.generateRoomCode();
+    expect(code).toMatch(/^ALT-[2-9A-HJ-NP-Z]{4}$/);
+
+    p2pTransferService.cleanup();
+    expect(p2pTransferService.activePc).toBeNull();
+    expect(p2pTransferService.activeChannel).toBeNull();
+    expect(p2pTransferService.joinInterval).toBeNull();
+    expect(p2pTransferService.pendingCandidates).toEqual([]);
   });
 });

@@ -341,6 +341,10 @@ async function renderActiveFileCard(container, file, link, token, password = nul
         a.click();
         document.body.removeChild(a);
 
+        if (downloadUrl.startsWith('blob:')) {
+          setTimeout(() => URL.revokeObjectURL(downloadUrl), 10000);
+        }
+
         toast.success(`Download started for "${file.name}"`);
         downloadBtn.innerHTML = `${icons.check(20)} Download Started`;
 
@@ -354,7 +358,8 @@ async function renderActiveFileCard(container, file, link, token, password = nul
       }
     } catch (err) {
       console.error('Download error:', err);
-      toast.error(`Could not download file: ${err.message}`);
+      const friendlyMsg = err.message || 'Could not initialize download. Please try again.';
+      toast.error(`Could not download file: ${friendlyMsg}`);
       downloadBtn.innerHTML = `${icons.download(22)} Download File`;
       downloadBtn.disabled = false;
     }

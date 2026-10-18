@@ -252,16 +252,58 @@ export function openShareModal(file, onUpdate = null) {
                   <button type="button" class="btn-icon btn-action-copy-tag" data-snippet="${escapeHtml(l.htmlSnippet)}" title="Copy HTML Snippet Tag">
                     ${icons.sparkles(16)}
                   </button>
-                  <button type="button" class="btn-icon text-danger btn-action-revoke" data-id="${l.id}" title="Revoke Link">
+                  <button type="button" class="btn-icon btn-action-edit" data-id="${l.id}" title="Edit Link Settings in DB">
+                    ${icons.edit(16)}
+                  </button>
+                  <button type="button" class="btn-icon text-danger btn-action-revoke" data-id="${l.id}" title="Revoke Link in DB">
                     ${icons.close(16)}
                   </button>
                 `
                   : `
-                  <button type="button" class="btn-icon text-muted btn-action-delete" data-id="${l.id}" title="Delete Record">
+                  <button type="button" class="btn-icon btn-action-edit" data-id="${l.id}" title="Reactivate / Edit Link Settings in DB">
+                    ${icons.edit(16)}
+                  </button>
+                  <button type="button" class="btn-icon text-muted btn-action-delete" data-id="${l.id}" title="Delete Record from DB">
                     ${icons.trash(16)}
                   </button>
                 `
               }
+            </div>
+          </div>
+
+          <!-- Edit Link Rules & Database Sync Drawer -->
+          <div class="link-edit-drawer hidden mt-2 p-3 glass-panel animate-scale-up" id="edit-drawer-${l.id}">
+            <div class="text-xs font-semibold mb-2 flex-between">
+              <span>Database Sync &bull; Token <code class="font-mono text-primary">${escapeHtml(l.token)}</code></span>
+              <button type="button" class="btn-icon text-muted btn-close-edit" data-id="${l.id}" style="padding:2px;">&times;</button>
+            </div>
+            <div class="grid-2 gap-2 text-left">
+              <div>
+                <label class="text-xs font-medium">Extend / Change Expiry</label>
+                <select class="form-input text-xs mt-1 edit-expiry-select" data-id="${l.id}">
+                  <option value="1h">1 Hour</option>
+                  <option value="24h">24 Hours</option>
+                  <option value="7d" selected>7 Days</option>
+                  <option value="30d">30 Days</option>
+                  <option value="never">Never (Persistent)</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs font-medium">Max Downloads Limit</label>
+                <input type="number" class="form-input text-xs mt-1 edit-limit-input" data-id="${l.id}" min="1" placeholder="Unlimited" value="${l.max_downloads || ''}" />
+              </div>
+            </div>
+            <div class="mt-2 text-left">
+              <label class="text-xs font-medium">Passcode (leave empty to clear)</label>
+              <input type="text" class="form-input text-xs mt-1 edit-pw-input" data-id="${l.id}" placeholder="Enter new passcode or clear" value="${escapeHtml(l.password_hash || '')}" />
+            </div>
+            <div class="flex-between mt-3">
+              <label class="text-xs flex-center gap-1 cursor-pointer">
+                <input type="checkbox" class="edit-revoke-check" data-id="${l.id}" ${l.is_revoked ? 'checked' : ''} /> Revoke link access
+              </label>
+              <button type="button" class="btn btn-primary btn-sm btn-save-link-db" data-id="${l.id}">
+                ${icons.check(14)} Save Changes to DB
+              </button>
             </div>
           </div>
         `)
@@ -289,11 +331,58 @@ export function openShareModal(file, onUpdate = null) {
         });
       });
 
+      // Edit toggle
+      listContainer.querySelectorAll('.btn-action-edit').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const drawer = listContainer.querySelector(`#edit-drawer-${btn.dataset.id}`);
+          if (drawer) {
+            drawer.classList.toggle('hidden');
+          }
+        });
+      });
+
+      listContainer.querySelectorAll('.btn-close-edit').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const drawer = listContainer.querySelector(`#edit-drawer-${btn.dataset.id}`);
+          if (drawer) drawer.classList.add('hidden');
+        });
+      });
+
+      // Save to DB
+      listContainer.querySelectorAll('.btn-save-link-db').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const linkId = btn.dataset.id;
+          const expirySelect = listContainer.querySelector(`.edit-expiry-select[data-id="${linkId}"]`);
+          const limitInput = listContainer.querySelector(`.edit-limit-input[data-id="${linkId}"]`);
+          const pwInput = listContainer.querySelector(`.edit-pw-input[data-id="${linkId}"]`);
+          const revokeCheck = listContainer.querySelector(`.edit-revoke-check[data-id="${linkId}"]`);
+
+          btn.disabled = true;
+          btn.innerHTML = `<span class="spinner-small mr-1"></span> Saving...`;
+
+          try {
+            await shareService.updateShareLink(linkId, {
+              duration: expirySelect?.value || '7d',
+              password: pwInput?.value || null,
+              maxDownloads: limitInput?.value || null,
+              is_revoked: Boolean(revokeCheck?.checked),
+            });
+            toast.success('Share link updated in Supabase database!');
+            await loadExistingLinks();
+            onUpdate?.();
+          } catch (err) {
+            toast.error(`Could not update link: ${err.message}`);
+            btn.disabled = false;
+            btn.innerHTML = `${icons.check(14)} Save Changes to DB`;
+          }
+        });
+      });
+
       listContainer.querySelectorAll('.btn-action-revoke').forEach((btn) => {
         btn.addEventListener('click', async () => {
           try {
             await shareService.revokeShareLink(btn.dataset.id);
-            toast.success('Share link revoked.');
+            toast.success('Share link revoked in database.');
             await loadExistingLinks();
             onUpdate?.();
           } catch (err) {
@@ -306,7 +395,7 @@ export function openShareModal(file, onUpdate = null) {
         btn.addEventListener('click', async () => {
           try {
             await shareService.deleteShareLink(btn.dataset.id);
-            toast.success('Link record deleted.');
+            toast.success('Link record deleted from database.');
             await loadExistingLinks();
             onUpdate?.();
           } catch (err) {

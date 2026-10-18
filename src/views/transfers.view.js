@@ -230,7 +230,7 @@ export const transfersView = {
                 <div class="p2p-code-chip font-mono text-xl" id="p2p-room-code-label">
                   ${this.p2pRoomCode || 'Click Generate Room Code'}
                 </div>
-                <div class="flex-center gap-2">
+                <div class="p2p-actions-row flex-center gap-2 flex-wrap">
                   <button type="button" class="btn btn-primary btn-sm" id="btn-gen-p2p-code">
                     ${icons.refresh(14)} Generate Code
                   </button>
@@ -627,7 +627,11 @@ export const transfersView = {
         toast.success(`"${this.p2pFile.name}" transferred successfully via direct WebRTC tunnel!`);
       },
       onError: (err) => {
-        toast.error(`P2P transfer error: ${err.message}`);
+        const msg = err.message || 'Connection interrupted';
+        if (this._lastHostErr === msg && Date.now() - (this._lastHostErrTime || 0) < 3000) return;
+        this._lastHostErr = msg;
+        this._lastHostErrTime = Date.now();
+        toast.error(`P2P transfer error: ${msg}`);
       },
     });
   },
@@ -680,7 +684,11 @@ export const transfersView = {
         this.render(container);
       },
       onError: (err) => {
-        toast.error(`Receiver error: ${err.message}`);
+        const msg = err.message || 'Connection interrupted';
+        if (this._lastRxErr === msg && Date.now() - (this._lastRxErrTime || 0) < 3000) return;
+        this._lastRxErr = msg;
+        this._lastRxErrTime = Date.now();
+        toast.error(`Receiver error: ${msg}`);
         if (connectBtn) {
           connectBtn.disabled = false;
           connectBtn.innerHTML = `${icons.sparkles(18)} Connect & Receive`;

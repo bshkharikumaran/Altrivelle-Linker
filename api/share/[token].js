@@ -172,7 +172,53 @@ export default async function handler(req, res) {
       });
     }
 
-    // 7. Action: Direct Raw Stream or Download
+    // 7. Action: Download URL request from recipient page
+    if (action === 'download') {
+      try {
+        await supabase.rpc('increment_share_download', { p_token: token.trim() });
+      } catch (_) {}
+
+      const { data: signedData, error: signError } = await supabase.storage
+        .from('filelink-files')
+        .createSignedUrl(file.storage_path, 3600, {
+          download: file.name,
+        });
+
+      if (!signError && signedData?.signedUrl) {
+        return res.status(200).json({
+          success: true,
+          downloadUrl: signedData.signedUrl,
+          fileName: file.name,
+          mimeType: file.mime_type,
+          sizeBytes: file.size_bytes,
+          developer: 'ALTRIVELLE TECHNOLOGIES',
+        });
+      }
+
+      // Fallback to public URL
+      const { data: pubData } = supabase.storage
+        .from('filelink-files')
+        .getPublicUrl(file.storage_path, { download: file.name });
+
+      if (pubData?.publicUrl) {
+        return res.status(200).json({
+          success: true,
+          downloadUrl: pubData.publicUrl,
+          fileName: file.name,
+          mimeType: file.mime_type,
+          sizeBytes: file.size_bytes,
+          developer: 'ALTRIVELLE TECHNOLOGIES',
+        });
+      }
+
+      return res.status(500).json({
+        success: false,
+        error: 'Could not generate secure file URL',
+        developer: 'ALTRIVELLE TECHNOLOGIES',
+      });
+    }
+
+    // 8. Action: Direct Raw Stream or File Embedding (/raw/:token, /f/:token, ?raw=1)
     const isInline = isDirectFileRequest && download !== '1';
 
     // Increment download counter safely
@@ -180,7 +226,7 @@ export default async function handler(req, res) {
       await supabase.rpc('increment_share_download', { p_token: token.trim() });
     } catch (_) {}
 
-    // A. Direct Binary Buffer Proxy (Optimal for HTML <img>, <video>, and local files like check.html)
+    // A. Direct Binary Buffer Proxy (Optimal for HTML <img>, <video>, audio, embeds)
     // Files up to 4.5 MB can be streamed directly without redirects
     if (file.size_bytes && file.size_bytes <= 4500000) {
       try {
@@ -209,32 +255,29 @@ export default async function handler(req, res) {
       }
     }
 
-    // B. Signed URL Redirect Fallback (for larger files)
+    // B. Signed URL Redirect Fallback (for larger files or when direct download failed)
     const { data: signedData, error: signError } = await supabase.storage
       .from('filelink-files')
       .createSignedUrl(file.storage_path, 3600, {
         download: isInline ? false : file.name,
       });
 
-    if (signError || !signedData?.signedUrl) {
-      return res.status(500).json({
-        success: false,
-        error: 'Could not generate secure file URL',
-        developer: 'ALTRIVELLE TECHNOLOGIES',
-      });
-    }
-
-    if (isDirectFileRequest) {
+    if (signedData?.signedUrl) {
       res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=300');
       return res.redirect(302, signedData.signedUrl);
     }
 
-    return res.status(200).json({
-      success: true,
-      downloadUrl: signedData.signedUrl,
-      fileName: file.name,
-      mimeType: file.mime_type,
-      sizeBytes: file.size_bytes,
+    const { data: pubData } = supabase.storage
+      .from('filelink-files')
+      .getPublicUrl(file.storage_path, { download: isInline ? false : file.name });
+
+    if (pubData?.publicUrl) {
+      return res.redirect(302, pubData.publicUrl);
+    }
+
+    return res.status(500).json({
+      success: false,
+      error: 'Could not generate secure file URL',
       developer: 'ALTRIVELLE TECHNOLOGIES',
     });
   } catch (error) {
